@@ -68,7 +68,7 @@
         </main>
     </div>
 
-    <!-- Auth Screens (Updated UI for Password) -->
+    <!-- Auth Screens -->
     <div id="auth-container" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4 hidden">
         
         <!-- Login Form -->
@@ -96,7 +96,7 @@
             </form>
         </div>
 
-        <!-- Register Form (Updated Logic) -->
+        <!-- Register Form -->
         <div id="register-view" class="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-fade hidden">
             <h2 class="text-2xl font-black mb-1 italic text-slate-900">ลงทะเบียนครั้งแรก</h2>
             <p class="text-slate-400 text-xs mb-6 uppercase tracking-widest font-bold">First Time Registration</p>
@@ -126,7 +126,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // --- 1. CONFIGURATION (VERCEL READY) ---
+        // --- 1. CONFIGURATION ---
         const firebaseConfig = {
             apiKey: window?.process?.env?.FIREBASE_API_KEY || "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
             authDomain: window?.process?.env?.FIREBASE_AUTH_DOMAIN || "safety-e-learning-15c6e.firebaseapp.com",
@@ -139,7 +139,7 @@
 
         const APP_ID = 'sks-safety-v11';
         
-        // --- 1.1 OWNER CREDENTIALS (HARDCODED) ---
+        // --- 1.1 OWNER CREDENTIALS ---
         const OWNER_CREDENTIALS = {
             email: "owner@sks.com",
             password: "sks10"
@@ -153,7 +153,7 @@
         let currentProfile = null;
         let courses = [];
         let allUsers = [];
-        let whitelist = []; // Store admin emails
+        let whitelist = []; 
         let currentView = 'dashboard';
         
         // Listeners
@@ -166,7 +166,6 @@
         // --- 2. INITIALIZATION ---
         async function init() {
             try {
-                // Anonymous Auth for Firestore Connection
                 await auth.signInAnonymously();
                 hideLoading();
                 showLogin();
@@ -193,8 +192,7 @@
             document.getElementById('loading-screen').classList.add('hidden');
         }
 
-        // --- 3. AUTHENTICATION LOGIC (UPDATED FOR PASSWORD) ---
-        // บรรทัดที่ 208-255: Logic การ Login แยกตาม Role
+        // --- 3. AUTHENTICATION LOGIC (UPDATED WITH ROLE SYNC) ---
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -204,11 +202,10 @@
 
             errorMsg.classList.add('hidden');
 
-            // 3.1 Owner Login Check (Hardcoded)
+            // 3.1 Owner Login Check
             if (email === OWNER_CREDENTIALS.email) {
                 if (pass === OWNER_CREDENTIALS.password) {
                     const data = { email, name: 'SKS Owner', role: 'owner', company: 'HEADQUARTERS', progress: 100 };
-                    // Save owner profile to ensure DB consistency
                     await getPublicCollection('users').doc(emailKey).set(data, {merge: true});
                     loginSuccess(data);
                 } else {
@@ -218,13 +215,22 @@
                 return;
             }
 
-            // 3.2 User/Admin Login Check (Firestore)
+            // 3.2 User/Admin Login Check
             const doc = await getPublicCollection('users').doc(emailKey).get();
+            const whitelistDoc = await getWhitelistDoc().get();
+            const adminList = whitelistDoc.exists ? (whitelistDoc.data().adminEmails || []) : [];
             
             if (doc.exists) {
-                const userData = doc.data();
-                // Check stored password (Simple implementation)
+                let userData = doc.data();
+                
+                // Password Check
                 if (userData.password === pass) {
+                    // ROLE SYNC CHECK: If in whitelist but currently trainee, promote to admin immediately
+                    if (adminList.includes(email) && userData.role !== 'admin' && userData.role !== 'owner') {
+                        userData.role = 'admin';
+                        await getPublicCollection('users').doc(emailKey).update({ role: 'admin' });
+                    }
+                    
                     loginSuccess(userData);
                 } else {
                     errorMsg.innerText = "รหัสผ่านไม่ถูกต้อง";
@@ -232,16 +238,14 @@
                 }
             } else {
                 // 3.3 New User -> Go to Register
-                // Pass email and password to register form state
                 document.getElementById('reg-email-display').innerText = email;
-                document.getElementById('reg-pass').value = pass; // Pre-fill password
+                document.getElementById('reg-pass').value = pass; 
                 document.getElementById('login-view').classList.add('hidden');
                 document.getElementById('register-view').classList.remove('hidden');
             }
         };
 
         // --- 4. REGISTRATION LOGIC ---
-        // บรรทัดที่ 258-290: ลงทะเบียน + เช็ค Whitelist Admin
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -261,7 +265,7 @@
 
             const data = {
                 email,
-                password: pass, // Storing password for this simplified system
+                password: pass, 
                 name: document.getElementById('reg-name').value,
                 company: document.getElementById('reg-company').value,
                 role: assignedRole, 
@@ -283,7 +287,7 @@
             renderView('dashboard');
         }
 
-        // --- 5. DATA LISTENERS & REALTIME SYNC ---
+        // --- 5. DATA LISTENERS ---
         function startDataListeners() {
             if (unsubCourses) unsubCourses();
             if (unsubUsers) unsubUsers();
@@ -295,19 +299,18 @@
                 if(currentView === 'dashboard') renderDashboard();
             });
 
-            // Owner: Fetch Whitelist
-            if (currentProfile.role === 'owner') {
-                unsubWhitelist = getWhitelistDoc().onSnapshot(s => {
-                    whitelist = s.exists ? (s.data().adminEmails || []) : [];
-                    if(currentView === 'users') renderUsers();
-                });
-            }
-
-            // Admin/Owner: Fetch All Users
+            // Admin/Owner: Fetch All Users & Whitelist
             if (['admin', 'owner'].includes(currentProfile.role)) {
                 unsubUsers = getPublicCollection('users').onSnapshot(s => {
                     allUsers = s.docs.map(d => ({id: d.id, ...d.data()}));
+                    // Update views if active
                     if(currentView === 'users') renderUsers();
+                    if(currentView === 'analytics') renderAnalytics(); 
+                });
+
+                unsubWhitelist = getWhitelistDoc().onSnapshot(s => {
+                    whitelist = s.exists ? (s.data().adminEmails || []) : [];
+                    if(currentView === 'users' && currentProfile.role === 'owner') renderUsers();
                 });
             }
         }
@@ -327,12 +330,14 @@
                 html += `<button onclick="renderView('builder')" id="nav-builder" class="nav-btn w-full flex items-center gap-3 p-3 rounded-2xl transition hover:bg-slate-800">
                     <i class="fa-solid fa-plus-circle w-6"></i> <span class="hidden md:block">สร้างหลักสูตร</span>
                 </button>`;
+            }
+
+            // Both Admin and Owner can see Analytics and Users
+            if (['owner', 'admin'].includes(role)) {
                 html += `<button onclick="renderView('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center gap-3 p-3 rounded-2xl transition hover:bg-slate-800">
                     <i class="fa-solid fa-chart-line w-6"></i> <span class="hidden md:block">ข้อมูลวิเคราะห์</span>
                 </button>`;
-            }
-
-            if (['owner', 'admin'].includes(role)) {
+                
                 html += `<button onclick="renderView('users')" id="nav-users" class="nav-btn w-full flex items-center gap-3 p-3 rounded-2xl transition hover:bg-slate-800">
                     <i class="fa-solid fa-user-shield w-6"></i> <span class="hidden md:block">จัดการบุคลากร</span>
                 </button>`;
@@ -355,11 +360,11 @@
                 if(viewName === 'dashboard') { title.innerText = 'Learning Dashboard'; renderDashboard(); }
                 else if(viewName === 'builder') { title.innerText = 'Course Builder'; renderBuilder(); }
                 else if(viewName === 'users') { title.innerText = 'Personnel Database'; renderUsers(); }
-                else if(viewName === 'analytics') { title.innerText = 'Data Insights'; renderAnalytics(); }
+                else if(viewName === 'analytics') { title.innerText = 'Analytics Dashboard'; renderAnalytics(); }
             }, 50);
         }
 
-        // --- 8. DASHBOARD VIEW (TRAINEE & ALL) ---
+        // --- 8. DASHBOARD VIEW ---
         function renderDashboard() {
             const container = document.getElementById('content-area');
             const cards = courses.map(c => `
@@ -401,17 +406,15 @@
                 </div>`;
         }
 
-        // --- 9. OWNER: COURSE BUILDER ---
-        // บรรทัดที่ 460+: เพิ่ม Logic การสร้างคำถาม
+        // --- 9. COURSE BUILDER ---
         let tempQuestions = [];
         
         function renderBuilder() {
-            tempQuestions = []; // Reset
+            tempQuestions = []; 
             document.getElementById('content-area').innerHTML = `
                 <div class="max-w-4xl mx-auto animate-fade">
                     <div class="bg-white p-8 md:p-10 rounded-[3rem] shadow-2xl border-4 border-white relative">
                         <h2 class="text-3xl font-black mb-8 italic text-slate-800">COURSE BUILDER</h2>
-                        
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -423,17 +426,13 @@
                                     <input id="c-video" placeholder="YouTube Link" class="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-red-500 transition-all outline-none" />
                                 </div>
                             </div>
-                            
                             <div>
                                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">Description</label>
                                 <textarea id="c-desc" placeholder="รายละเอียด..." class="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-red-500 transition-all outline-none h-24"></textarea>
                             </div>
-
-                            <!-- Quiz Builder UI -->
                             <div class="p-6 bg-red-50 rounded-3xl border-2 border-dashed border-red-200">
                                 <h4 class="font-bold text-red-600 text-sm mb-4 italic"><i class="fa-solid fa-list-check mr-2"></i>QUIZ QUESTIONS</h4>
                                 <div id="questions-list" class="space-y-3 mb-4"></div>
-                                
                                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                                     <input id="q-text" placeholder="พิมพ์คำถามที่นี่..." class="w-full mb-3 font-bold text-sm outline-none border-b border-slate-100 pb-2" />
                                     <div class="grid grid-cols-2 gap-2 mb-2">
@@ -445,7 +444,6 @@
                                     <button onclick="addQuestion()" class="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-700">Add Question to List</button>
                                 </div>
                             </div>
-
                             <button onclick="handleSaveCourse()" class="w-full bg-red-600 text-white py-5 rounded-[2rem] font-black hover:bg-red-700 transition-all shadow-xl uppercase tracking-widest italic">DEPLOY COURSE</button>
                         </div>
                     </div>
@@ -456,22 +454,17 @@
             const text = document.getElementById('q-text').value;
             const opt1 = document.getElementById('q-opt1').value;
             if(!text || !opt1) return alert('กรุณาใส่คำถามและตัวเลือกที่ถูกต้อง (ตัวเลือก A)');
-            
             tempQuestions.push({
                 question: text,
                 options: [opt1, document.getElementById('q-opt2').value, document.getElementById('q-opt3').value, document.getElementById('q-opt4').value],
-                correctIndex: 0 // Simplification: A is always correct in data logic, shuffle in UI
+                correctIndex: 0
             });
-
-            // Render list
             document.getElementById('questions-list').innerHTML = tempQuestions.map((q, i) => `
                 <div class="flex justify-between items-center text-xs bg-white p-3 rounded-xl">
                     <span class="font-bold text-slate-700">${i+1}. ${q.question}</span>
                     <button onclick="tempQuestions.splice(${i},1); addQuestion();" class="text-red-500"><i class="fa-solid fa-times"></i></button>
                 </div>
             `).join('');
-            
-            // Clear inputs
             document.getElementById('q-text').value = '';
             document.querySelectorAll('[id^="q-opt"]').forEach(el => el.value = '');
         }
@@ -479,7 +472,6 @@
         async function handleSaveCourse() {
             const title = document.getElementById('c-title').value;
             if(!title) return;
-            
             await getPublicCollection('courses').add({
                 title, 
                 desc: document.getElementById('c-desc').value,
@@ -491,17 +483,11 @@
         }
 
         async function deleteCourse(id) {
-            if(confirm('ยืนยันการลบบทเรียนนี้? (การลบจะไม่สามารถกู้คืนได้)')) {
-                await getPublicCollection('courses').doc(id).delete();
-            }
+            if(confirm('ยืนยันการลบบทเรียนนี้?')) await getPublicCollection('courses').doc(id).delete();
         }
 
-        // --- 10. ADMIN/OWNER: USER MANAGEMENT & WHITELIST ---
-        // บรรทัดที่ 550+: เพิ่ม UI สำหรับ Owner Whitelist Admin และ Filter ตามขนส่ง
+        // --- 10. USER MANAGEMENT ---
         function renderUsers() {
-            // Filter Logic (Admin Dashboard)
-            const uniqueCompanies = [...new Set(allUsers.map(u => u.company))].filter(Boolean);
-            
             // Whitelist UI (Only Owner)
             let whitelistUI = '';
             if (currentProfile.role === 'owner') {
@@ -509,7 +495,7 @@
                     <div class="bg-slate-900 text-white p-6 rounded-3xl mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div>
                             <h3 class="font-black italic text-lg text-yellow-400">ADMIN WHITELIST</h3>
-                            <p class="text-xs text-slate-400">Manage who can register as Admin</p>
+                            <p class="text-xs text-slate-400">จัดการอีเมลที่อนุญาตให้เป็น Admin</p>
                         </div>
                         <div class="flex gap-2 w-full md:w-auto">
                             <input id="new-admin-email" placeholder="email@company.com" class="text-slate-900 px-4 py-2 rounded-xl text-sm font-bold w-full" />
@@ -521,7 +507,6 @@
                     </div>`;
             }
 
-            // Table UI
             const rows = allUsers.map(u => `
                 <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                     <td class="p-4">
@@ -529,14 +514,8 @@
                         <div class="text-[10px] text-slate-400 font-medium">${u.email}</div>
                     </td>
                     <td class="p-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">${u.company}</td>
-                    <td class="p-4">
-                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div class="bg-red-500 h-full" style="width: ${u.progress || 0}%"></div>
-                        </div>
-                    </td>
-                    <td class="p-4">
-                        <span class="px-3 py-1 ${u.role === 'admin' ? 'bg-yellow-100 text-yellow-700' : (u.role === 'owner' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500')} text-[9px] font-black rounded-full uppercase italic">${u.role}</span>
-                    </td>
+                    <td class="p-4"><span class="text-[10px] font-black text-red-600">${u.progress || 0}%</span></td>
+                    <td class="p-4"><span class="px-3 py-1 ${u.role === 'admin' ? 'bg-yellow-100 text-yellow-700' : (u.role === 'owner' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500')} text-[9px] font-black rounded-full uppercase italic">${u.role}</span></td>
                 </tr>
             `).join('');
 
@@ -544,33 +523,111 @@
                 <div class="max-w-6xl mx-auto animate-fade">
                     ${whitelistUI}
                     <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h2 class="text-2xl font-black italic">DATABASE</h2>
-                            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Total Users: ${allUsers.length}</p>
-                        </div>
-                        <button onclick="exportToCSV()" class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-green-700 shadow-lg transition-all">
-                            <i class="fa-solid fa-file-csv"></i> EXPORT CSV
-                        </button>
+                        <h2 class="text-2xl font-black italic">ALL USERS</h2>
+                        <button onclick="exportToCSV()" class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-green-700 shadow-lg transition-all"><i class="fa-solid fa-file-csv"></i> EXPORT CSV</button>
                     </div>
-                    
-                    <!-- Filters -->
-                    <div class="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scrollbar">
-                        <button onclick="filterUsers('all')" class="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold whitespace-nowrap">ALL</button>
-                        ${uniqueCompanies.map(c => `<button onclick="alert('Filter logic here for ${c}')" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold whitespace-nowrap hover:bg-slate-50">${c}</button>`).join('')}
-                    </div>
-
                     <div class="bg-white rounded-[2rem] border-4 border-white shadow-xl overflow-hidden">
                         <table class="w-full text-left">
                             <thead class="bg-slate-900 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                <tr><th class="p-5">Information</th><th class="p-5">Department</th><th class="p-5">Progress</th><th class="p-5">Role</th></tr>
+                                <tr><th class="p-5">Name/Email</th><th class="p-5">Company</th><th class="p-5">Progress</th><th class="p-5">Role</th></tr>
                             </thead>
-                            <tbody>${rows || '<tr><td colspan="4" class="p-10 text-center text-slate-300">No data available.</td></tr>'}</tbody>
+                            <tbody>${rows}</tbody>
                         </table>
                     </div>
                 </div>`;
         }
 
-        // Whitelist Logic
+        // --- 11. ANALYTICS (UPDATED) ---
+        function renderAnalytics() {
+            // Get Unique Companies
+            const companies = [...new Set(allUsers.filter(u => u.role === 'trainee').map(u => u.company))].filter(Boolean);
+            
+            // UI
+            document.getElementById('content-area').innerHTML = `
+                <div class="max-w-6xl mx-auto animate-fade">
+                    <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+                        <div>
+                            <h2 class="text-3xl font-black italic text-slate-900">ANALYTICS DASHBOARD</h2>
+                            <p class="text-slate-400 text-sm font-medium">ติดตามผลการเรียนรายบริษัท (Drivers Performance)</p>
+                        </div>
+                        <div class="w-full md:w-64">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">SELECT COMPANY</label>
+                            <select id="company-filter" onchange="filterAnalytics()" class="w-full p-3 bg-white rounded-xl font-bold text-sm border-2 border-slate-200 outline-none focus:border-red-500 transition-colors">
+                                <option value="all">แสดงทั้งหมด (All Companies)</option>
+                                ${companies.map(c => `<option value="${c}">${c}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="analytics-content">
+                        <!-- Content injected by filterAnalytics() -->
+                    </div>
+                </div>`;
+            
+            // Initial Load
+            filterAnalytics();
+        }
+
+        function filterAnalytics() {
+            const selectedCompany = document.getElementById('company-filter').value;
+            let targetUsers = allUsers.filter(u => u.role === 'trainee'); // Show only trainees in analytics
+            
+            if(selectedCompany !== 'all') {
+                targetUsers = targetUsers.filter(u => u.company === selectedCompany);
+            }
+
+            // Calculations
+            const totalUsers = targetUsers.length;
+            const avgProgress = totalUsers > 0 ? Math.round(targetUsers.reduce((acc, u) => acc + (u.progress || 0), 0) / totalUsers) : 0;
+            const passedUsers = targetUsers.filter(u => (u.progress || 0) >= 100).length;
+
+            const rows = targetUsers.map(u => `
+                <tr class="border-b border-slate-50">
+                    <td class="p-4 font-bold text-sm text-slate-700">${u.name}</td>
+                    <td class="p-4 text-xs text-slate-500">${u.company}</td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div class="bg-${u.progress >= 100 ? 'green' : 'red'}-500 h-full" style="width: ${u.progress || 0}%"></div>
+                            </div>
+                            <span class="text-xs font-bold">${u.progress || 0}%</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        ${u.progress >= 100 ? 
+                            '<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold">COMPLETED</span>' : 
+                            '<span class="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[10px] font-bold">IN PROGRESS</span>'}
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('analytics-content').innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-slate-900 text-white p-6 rounded-3xl">
+                        <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest">Total Drivers</p>
+                        <h3 class="text-4xl font-black">${totalUsers}</h3>
+                    </div>
+                    <div class="bg-white border border-slate-100 p-6 rounded-3xl">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Average Progress</p>
+                        <h3 class="text-4xl font-black text-red-600">${avgProgress}%</h3>
+                    </div>
+                    <div class="bg-white border border-slate-100 p-6 rounded-3xl">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Certified</p>
+                        <h3 class="text-4xl font-black text-green-600">${passedUsers} <span class="text-sm text-slate-400 font-medium">/ ${totalUsers}</span></h3>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-[2rem] border-4 border-white shadow-xl overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <tr><th class="p-5">Driver Name</th><th class="p-5">Company</th><th class="p-5">Progress</th><th class="p-5">Status</th></tr>
+                        </thead>
+                        <tbody>${rows || '<tr><td colspan="4" class="p-8 text-center text-slate-300">No data found.</td></tr>'}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         async function addAdminWhitelist() {
             const email = document.getElementById('new-admin-email').value.trim().toLowerCase();
             if(!email) return;
@@ -605,15 +662,6 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }
-
-        function renderAnalytics() {
-            document.getElementById('content-area').innerHTML = `
-                <div class="max-w-6xl mx-auto animate-fade text-center py-20">
-                    <i class="fa-solid fa-chart-pie text-6xl text-slate-200 mb-6"></i>
-                    <h2 class="text-3xl font-black italic text-slate-800">ANALYTICS DASHBOARD</h2>
-                    <p class="text-slate-400 mt-2 font-medium">ส่วนวิเคราะห์ข้อมูลสำหรับ Data Engineer (อยู่ระหว่างการพัฒนา BI Tools)</p>
-                </div>`;
         }
 
         function logout() { window.location.reload(); }
