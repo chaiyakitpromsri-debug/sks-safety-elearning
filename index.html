@@ -3,64 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SKS Safety Enterprise LMS</title>
+    <title>SKS Safety Enterprise - Platform</title>
     
-    <!-- 1. Tailwind CSS สำหรับการตกแต่ง UI -->
+    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 2. React & ReactDOM (Core Libraries) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- 3. Babel สำหรับแปลง JSX ให้ Browser เข้าใจ -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- 4. Lucide Icons (ใช้แทนการ import package) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- 5. Firebase SDKs (เวอร์ชันที่รองรับการใช้งานในไฟล์เดี่ยว) -->
+    <!-- Firebase Legacy SDK (Better for Single HTML Files) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700;900&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Kanit', sans-serif; }
-        .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;  
-            overflow: hidden;
-        }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body class="bg-slate-50">
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- ดึงค่า Config จาก Environment ---
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sks-safety-enterprise-v4';
+        // 1. Firebase Configuration (ใช้วงเล็บปีกกาป้องกัน Error หาก __firebase_config ไม่มีค่า)
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sks-safety-v5-final';
         
-        // Initializing Firebase (Compatibility Mode)
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+        // 2. Constants
         const OWNER_EMAIL = 'owner@sks.com';
 
-        // สร้าง Lucide Icon Component เพื่อให้ใช้ใน React ได้ง่ายๆ
-        const Icon = ({ name, size = 20, className = "" }) => {
-            const [svg, setSvg] = React.useState("");
-            React.useEffect(() => {
-                const icon = lucide.createIcons.icons[name];
-                if (icon) {
-                    setSvg(lucide.createIcons.icons[name]);
-                }
-            }, [name]);
-            // ใช้ SVG แทนการเรียก Component ตรงๆ เนื่องจากข้อจำกัดของ CDN
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        // 3. Simple Icon Component (ใช้ SVG ตรงๆ เพื่อความเสถียร)
+        const Icon = ({ type, className = "w-5 h-5" }) => {
+            const icons = {
+                shield: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+                layout: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
+                users: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+                plus: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+                logout: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+                book: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+                trash: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            };
+            return icons[type] || null;
         };
 
         const { useState, useEffect } = React;
@@ -72,76 +63,60 @@
             const [loading, setLoading] = useState(true);
             const [courses, setCourses] = useState([]);
             const [allUsers, setAllUsers] = useState([]);
+            
+            // Course Builder State
+            const [newCourse, setNewCourse] = useState({ title: '', desc: '', videoId: '', passScore: 80, questions: [] });
+            const [currentStep, setCurrentStep] = useState(1); // 1: Info, 2: Questions
+
+            // Quiz State
             const [activeCourse, setActiveCourse] = useState(null);
-            const [currentQ, setCurrentQ] = useState(0);
             const [userAnswers, setUserAnswers] = useState({});
 
-            // 1. Authentication Listener
             useEffect(() => {
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await auth.signInWithCustomToken(__initial_auth_token);
+                const unsubscribe = auth.onAuthStateChanged(async (u) => {
+                    if (u) {
+                        setUser(u);
+                        // อัตโนมัติ: ถ้าไม่มี profile ใน state ให้ลองหาจาก DB (กรณี Refresh หน้า)
                     } else {
-                        await auth.signInAnonymously();
-                    }
-                };
-                initAuth();
-
-                const unsubscribe = auth.onAuthStateChanged((u) => {
-                    setUser(u);
-                    if (!u) {
-                        setView('login');
-                        setProfile(null);
+                        auth.signInAnonymously();
                     }
                     setLoading(false);
                 });
                 return () => unsubscribe();
             }, []);
 
-            // 2. Data Fetching (Real-time)
+            // ดึงข้อมูลพื้นฐานเมื่อ Profile เปลี่ยน
             useEffect(() => {
-                if (!user || !profile) return;
-
-                const coursesRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('courses');
-                const unsubCourses = coursesRef.onSnapshot(snap => {
-                    setCourses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                });
-
-                let unsubUsers = () => {};
-                if (profile.role === 'owner' || profile.role === 'admin') {
-                    const usersRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users');
-                    unsubUsers = usersRef.onSnapshot(snap => {
-                        setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                    });
-                }
+                if (!profile) return;
                 
-                // หลังจากข้อมูลโหลดเสร็จ ให้สั่ง Lucide scan icon ใหม่
-                setTimeout(() => lucide.createIcons(), 500);
+                // ดึงบทเรียน
+                const unsubCourses = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('courses')
+                    .onSnapshot(snap => setCourses(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+
+                // ถ้าเป็น Admin/Owner ดึงข้อมูลพนักงานทั้งหมด
+                let unsubUsers = () => {};
+                if (['admin', 'owner'].includes(profile.role)) {
+                    unsubUsers = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users')
+                        .onSnapshot(snap => setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+                }
 
                 return () => { unsubCourses(); unsubUsers(); };
-            }, [user, profile]);
-
-            // Run Lucide Scan ทุกครั้งที่ View เปลี่ยน
-            useEffect(() => {
-                lucide.createIcons();
-            }, [view]);
+            }, [profile]);
 
             const handleLogin = async (e) => {
                 e.preventDefault();
                 const email = e.target.email.value.trim().toLowerCase();
                 const emailKey = email.replace(/[@.]/g, '_');
 
-                const userDocRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(emailKey);
-
                 if (email === OWNER_EMAIL) {
-                    const ownerProfile = { email, name: 'System Owner', role: 'owner', uid: user.uid };
-                    await userDocRef.set(ownerProfile, { merge: true });
-                    setProfile(ownerProfile);
+                    const ownerData = { email, name: 'System Owner', role: 'owner', uid: user.uid };
+                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(emailKey).set(ownerData, {merge: true});
+                    setProfile(ownerData);
                     setView('dashboard');
                     return;
                 }
 
-                const doc = await userDocRef.get();
+                const doc = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(emailKey).get();
                 if (doc.exists) {
                     setProfile(doc.data());
                     setView('dashboard');
@@ -154,23 +129,58 @@
                 e.preventDefault();
                 const email = e.target.email.value.trim().toLowerCase();
                 const emailKey = email.replace(/[@.]/g, '_');
-                const newProfile = {
+                const regData = {
                     email,
                     name: e.target.name.value,
                     company: e.target.company.value,
                     role: 'trainee',
                     progress: 0,
                     coursesStatus: {},
-                    uid: user.uid
+                    uid: user.uid,
+                    joinedAt: new Date().toISOString()
                 };
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(emailKey).set(newProfile);
-                setProfile(newProfile);
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(emailKey).set(regData);
+                setProfile(regData);
                 setView('dashboard');
             };
 
-            const submitQuiz = async () => {
+            const addQuestion = () => {
+                setNewCourse({
+                    ...newCourse,
+                    questions: [...newCourse.questions, { q: '', options: ['', ''], a: 0 }]
+                });
+            };
+
+            const saveCourse = async () => {
+                if (!newCourse.title || newCourse.questions.length === 0) return alert("กรุณาระบุข้อมูลให้ครบ");
+                const cid = 'c_' + Date.now();
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('courses').doc(cid).set(newCourse);
+                setNewCourse({ title: '', desc: '', videoId: '', passScore: 80, questions: [] });
+                setCurrentStep(1);
+                setView('dashboard');
+                alert("สร้างบทเรียนสำเร็จ!");
+            };
+
+            const promoteAdmin = async (uId, currentRole) => {
+                const newRole = currentRole === 'admin' ? 'trainee' : 'admin';
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(uId).update({ role: newRole });
+            };
+
+            const exportCSV = () => {
+                let csv = "Name,Email,Company,Role,Progress,Status\n";
+                allUsers.forEach(u => {
+                    csv += `${u.name},${u.email},${u.company},${u.role},${u.progress}%,Active\n`;
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `SKS_Safety_Report_${new Date().toLocaleDateString()}.csv`;
+                link.click();
+            };
+
+            const finalizeQuiz = async () => {
                 let score = 0;
-                activeCourse.questions.forEach((q, i) => { if (userAnswers[i] === q.a) score++; });
+                activeCourse.questions.forEach((q, i) => { if(userAnswers[i] === q.a) score++; });
                 const percent = Math.round((score / activeCourse.questions.length) * 100);
                 const passed = percent >= activeCourse.passScore;
 
@@ -179,193 +189,311 @@
                 
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(emailKey).update({
                     coursesStatus: updatedStatus,
-                    progress: Math.min(100, (profile.progress || 0) + 20)
+                    progress: Math.round(((Object.keys(updatedStatus).length) / (courses.length || 1)) * 100)
                 });
 
                 setProfile(prev => ({ ...prev, coursesStatus: updatedStatus }));
                 setView('result');
             };
 
-            const exportCSV = () => {
-                let csv = "Name,Email,Company,Role,Progress\n";
-                allUsers.forEach(u => {
-                    csv += `"${u.name}","${u.email}","${u.company || 'N/A'}","${u.role}",${u.progress || 0}%\n`;
-                });
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `SKS_Report_${Date.now()}.csv`;
-                a.click();
-            };
+            if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">LOADING SKS SYSTEM...</div>;
 
-            if (loading) return (
-                <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white italic animate-pulse">
-                    Initializing SKS Safe System...
-                </div>
-            );
+            // --- Sub-Views ---
 
-            // --- UI Renders ---
-            
-            if (view === 'login') return (
-                <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6">
-                    <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center">
-                        <div className="bg-red-100 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                            <i data-lucide="shield" className="w-10 h-10 text-red-600"></i>
-                        </div>
-                        <h1 className="text-3xl font-black italic uppercase text-slate-800">SKS Safety</h1>
-                        <p className="text-slate-400 text-xs uppercase tracking-[0.2em] mb-8">Enterprise Learning Management</p>
-                        <form onSubmit={handleLogin} className="space-y-4 text-left">
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Work Email</label>
-                                <input name="email" type="email" required className="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 transition text-slate-800" placeholder="yourname@sks.com" />
-                            </div>
-                            <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition shadow-xl">เข้าสู่ระบบ</button>
+            const Login = () => (
+                <div className="min-h-screen flex items-center justify-center bg-slate-900">
+                    <div className="bg-white p-10 rounded-[2.5rem] w-full max-w-md shadow-2xl">
+                        <div className="flex justify-center mb-6"><div className="bg-red-600 p-4 rounded-3xl text-white shadow-lg"><Icon type="shield" className="w-8 h-8"/></div></div>
+                        <h1 className="text-3xl font-extrabold text-center mb-2 italic">SKS SAFETY</h1>
+                        <p className="text-center text-slate-400 text-sm mb-8 uppercase tracking-widest">Enterprise Portal</p>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <input name="email" type="email" placeholder="Email Address" required className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-red-600 outline-none transition" />
+                            <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold hover:bg-red-600 transition shadow-xl">ENTER SYSTEM</button>
                         </form>
                     </div>
                 </div>
             );
 
-            if (view === 'register') return (
-                <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6">
-                    <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md">
-                        <h2 className="text-2xl font-bold mb-2">ลงทะเบียนพนักงานใหม่</h2>
-                        <form onSubmit={handleRegister} className="space-y-4">
-                            <input name="email" type="email" readOnly value={document.querySelector('input[name="email"]')?.value} className="w-full p-4 bg-slate-50 border rounded-2xl text-slate-400" />
-                            <input name="name" required className="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600" placeholder="ชื่อ-นามสกุล" />
-                            <input name="company" required className="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600" placeholder="บริษัทขนส่ง / แผนก" />
-                            <button className="w-full bg-red-600 text-white py-4 rounded-2xl font-bold shadow-xl">บันทึกข้อมูลและเริ่มต้น</button>
+            const Register = () => (
+                <div className="min-h-screen flex items-center justify-center bg-slate-900">
+                    <div className="bg-white p-10 rounded-[2.5rem] w-full max-w-md shadow-2xl text-center">
+                        <h2 className="text-2xl font-bold mb-6">ลงทะเบียนพนักงานใหม่</h2>
+                        <form onSubmit={handleRegister} className="space-y-4 text-left">
+                            <label className="text-xs font-bold text-slate-400 ml-2">อีเมลผู้ใช้งาน</label>
+                            <input name="email" readOnly value={document.querySelector('input[name="email"]')?.value} className="w-full p-4 bg-slate-100 rounded-2xl text-slate-400 outline-none mb-4" />
+                            <input name="name" placeholder="ชื่อ-นามสกุล" required className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-red-600 outline-none transition" />
+                            <input name="company" placeholder="บริษัท / แผนก" required className="w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-red-600 outline-none transition" />
+                            <button className="w-full bg-red-600 text-white p-4 rounded-2xl font-bold mt-4 shadow-xl">สร้างบัญชีผู้ใช้</button>
                         </form>
                     </div>
                 </div>
             );
 
-            return (
-                <div className="flex min-h-screen bg-slate-50">
-                    <aside className="w-72 bg-slate-900 text-white p-8 hidden lg:flex flex-col h-screen sticky top-0">
-                        <div className="flex items-center gap-3 mb-10">
-                            <div className="bg-red-600 p-2 rounded-lg text-white"><i data-lucide="shield"></i></div>
-                            <span className="font-bold text-xl italic uppercase tracking-tighter">SKS Portal</span>
-                        </div>
-                        <nav className="space-y-2 flex-1">
-                            <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition font-bold text-sm ${view === 'dashboard' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-white'}`}>
-                                <i data-lucide="layout" className="w-4 h-4"></i> Dashboard
-                            </button>
-                            {(profile?.role === 'owner' || profile?.role === 'admin') && (
-                                <button onClick={() => setView('user-mgmt')} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition font-bold text-sm ${view === 'user-mgmt' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-white'}`}>
-                                    <i data-lucide="bar-chart-3" className="w-4 h-4"></i> Analytics
-                                </button>
-                            )}
-                        </nav>
-                        <div className="pt-6 border-t border-slate-800">
-                            <p className="font-bold text-sm truncate">{profile?.name}</p>
-                            <button onClick={() => auth.signOut()} className="flex items-center gap-2 text-slate-500 hover:text-white text-sm font-bold mt-2">
-                                <i data-lucide="log-out" className="w-4 h-4"></i> Logout
-                            </button>
-                        </div>
-                    </aside>
+            const Sidebar = () => (
+                <div className="w-64 bg-slate-900 text-white h-screen sticky top-0 flex flex-col p-6 shrink-0">
+                    <div className="flex items-center gap-3 mb-10 px-2">
+                        <div className="bg-red-600 p-1.5 rounded-lg"><Icon type="shield" className="w-5 h-5"/></div>
+                        <span className="font-extrabold italic tracking-tighter text-xl">SKS SAFE</span>
+                    </div>
+                    <nav className="space-y-2 flex-1">
+                        <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition font-semibold ${view === 'dashboard' ? 'bg-slate-800' : 'text-slate-400 hover:text-white'}`}><Icon type="layout"/> Dashboard</button>
+                        {profile.role === 'owner' && <button onClick={() => setView('builder')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition font-semibold ${view === 'builder' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}><Icon type="plus"/> Create Course</button>}
+                        {['owner', 'admin'].includes(profile.role) && <button onClick={() => setView('users')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition font-semibold ${view === 'users' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}><Icon type="users"/> Manage Users</button>}
+                    </nav>
+                    <div className="mt-auto border-t border-slate-800 pt-6 px-2">
+                        <p className="text-xs font-bold text-red-500 uppercase tracking-widest mb-1">{profile.role}</p>
+                        <p className="font-bold text-sm truncate mb-4">{profile.name}</p>
+                        <button onClick={() => auth.signOut()} className="flex items-center gap-2 text-slate-500 hover:text-white font-bold text-sm"><Icon type="logout" className="w-4 h-4"/> Sign Out</button>
+                    </div>
+                </div>
+            );
 
-                    <main className="flex-1 p-8 md:p-12">
-                        {view === 'dashboard' && (
-                            <div className="max-w-6xl mx-auto">
-                                <header className="mb-10">
-                                    <h2 className="text-3xl font-black italic uppercase">Learning Dashboard</h2>
-                                    <p className="text-slate-400">Welcome back, {profile?.name}</p>
-                                </header>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {courses.map(c => (
-                                        <div key={c.id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 group hover:shadow-xl transition-all">
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="bg-slate-100 p-4 rounded-2xl group-hover:bg-red-600 group-hover:text-white transition-colors">
-                                                    <i data-lucide="play-circle"></i>
-                                                </div>
-                                            </div>
-                                            <h3 className="text-xl font-bold mb-2">{c.title}</h3>
-                                            <p className="text-slate-500 text-sm mb-8 line-clamp-2">{c.desc}</p>
-                                            <button onClick={() => { setActiveCourse(c); setView('course'); }} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition shadow-lg flex items-center justify-center gap-2">
-                                                เริ่มบทเรียน <i data-lucide="chevron-right" className="w-4 h-4"></i>
-                                            </button>
+            // --- Main Content Views ---
+
+            const Dashboard = () => (
+                <div className="p-8 max-w-5xl mx-auto w-full">
+                    <div className="mb-10 flex justify-between items-end">
+                        <div>
+                            <h2 className="text-3xl font-extrabold italic uppercase">Dashboard</h2>
+                            <p className="text-slate-400">ยินดีต้อนรับคุณ, {profile.name}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs font-bold text-slate-400 uppercase">My Progress</p>
+                            <p className="text-2xl font-black text-red-600">{profile.progress || 0}%</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {courses.length === 0 ? <div className="col-span-2 text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">ยังไม่มีบทเรียนในขณะนี้</div> : 
+                            courses.map(c => {
+                                const status = profile.coursesStatus?.[c.id]?.status || 'Not Started';
+                                return (
+                                    <div key={c.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="p-4 bg-slate-100 rounded-2xl group-hover:bg-red-600 group-hover:text-white transition-colors"><Icon type="book"/></div>
+                                            <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase ${status === 'Passed' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>{status}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {view === 'user-mgmt' && (
-                            <div>
-                                <div className="flex justify-between items-center mb-10">
-                                    <h2 className="text-3xl font-black italic uppercase">User Reports</h2>
-                                    <button onClick={exportCSV} className="bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg">
-                                        <i data-lucide="download" className="w-4 h-4"></i> Export CSV
-                                    </button>
-                                </div>
-                                <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
-                                    <table className="w-full text-left">
-                                        <thead className="bg-slate-50 border-b text-[10px] font-black uppercase text-slate-400">
-                                            <tr>
-                                                <th className="p-6">User</th>
-                                                <th className="p-6 text-center">Progress</th>
-                                                <th className="p-6 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {allUsers.map(u => (
-                                                <tr key={u.id} className="border-b border-slate-50">
-                                                    <td className="p-6 font-bold">{u.name}</td>
-                                                    <td className="p-6 text-center">{u.progress || 0}%</td>
-                                                    <td className="p-6 text-right">
-                                                        <button onClick={() => db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').doc(u.id).delete()} className="text-red-400"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-
-                        {view === 'course' && activeCourse && (
-                            <div className="max-w-5xl mx-auto">
-                                <button onClick={() => setView('dashboard')} className="mb-6 flex items-center gap-2 text-slate-400 font-bold"><i data-lucide="arrow-left"></i> Back</button>
-                                <div className="aspect-video bg-black rounded-[2.5rem] overflow-hidden mb-8 shadow-2xl">
-                                    <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${activeCourse.videoId}`} frameBorder="0" allowFullScreen></iframe>
-                                </div>
-                                <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center">
-                                    <div>
-                                        <h2 className="text-2xl font-black italic uppercase">{activeCourse.title}</h2>
-                                        <p className="text-slate-400">รับชมวิดีโอจบแล้วคลิกเพื่อทำข้อสอบ</p>
+                                        <h3 className="text-xl font-bold mb-2">{c.title}</h3>
+                                        <p className="text-sm text-slate-500 mb-6 line-clamp-2">{c.desc}</p>
+                                        <button onClick={() => { setActiveCourse(c); setView('course'); }} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-red-600 transition">เข้าสู่บทเรียน</button>
                                     </div>
-                                    <button onClick={() => setView('quiz')} className="bg-red-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl mt-4 md:mt-0">เริ่มทำข้อสอบ</button>
-                                </div>
-                            </div>
-                        )}
+                                );
+                            })
+                        }
+                    </div>
+                </div>
+            );
 
-                        {view === 'quiz' && (
-                            <div className="max-w-xl mx-auto py-10">
-                                <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 text-center">
-                                    <h3 className="text-xl font-bold mb-8">{activeCourse.questions[currentQ].q}</h3>
-                                    <div className="space-y-3">
-                                        {activeCourse.questions[currentQ].options.map((opt, i) => (
-                                            <button key={i} onClick={() => setUserAnswers({...userAnswers, [currentQ]: i})} className={`w-full p-5 rounded-2xl border-2 transition ${userAnswers[currentQ] === i ? 'border-red-600 bg-red-50' : 'border-slate-100'}`}>
-                                                {opt}
-                                            </button>
+            const Builder = () => (
+                <div className="p-8 max-w-4xl mx-auto w-full">
+                    <h2 className="text-3xl font-extrabold italic uppercase mb-8">Course Builder</h2>
+                    
+                    {currentStep === 1 ? (
+                        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200">
+                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><div className="w-2 h-8 bg-red-600 rounded-full"></div> STEP 1: General Info</h3>
+                            <div className="space-y-4">
+                                <input placeholder="ชื่อบทเรียน" className="w-full p-4 bg-slate-50 rounded-xl outline-none" value={newCourse.title} onChange={e => setNewCourse({...newCourse, title: e.target.value})} />
+                                <textarea placeholder="คำอธิบายสั้นๆ" className="w-full p-4 bg-slate-50 rounded-xl outline-none h-24" value={newCourse.desc} onChange={e => setNewCourse({...newCourse, desc: e.target.value})} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input placeholder="YouTube Video ID (เช่น dQw4w9WgXcQ)" className="p-4 bg-slate-50 rounded-xl outline-none" value={newCourse.videoId} onChange={e => setNewCourse({...newCourse, videoId: e.target.value})} />
+                                    <input type="number" placeholder="คะแนนผ่าน (%)" className="p-4 bg-slate-50 rounded-xl outline-none" value={newCourse.passScore} onChange={e => setNewCourse({...newCourse, passScore: e.target.value})} />
+                                </div>
+                                <button onClick={() => setCurrentStep(2)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold mt-4 shadow-lg">ถัดไป: เพิ่มข้อสอบ</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-lg flex items-center gap-2"><div className="w-2 h-8 bg-red-600 rounded-full"></div> STEP 2: Assessment Questions</h3>
+                                <button onClick={addQuestion} className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md hover:bg-red-700 transition"><Icon type="plus"/> เพิ่มคำถาม</button>
+                            </div>
+                            
+                            {newCourse.questions.map((q, qIdx) => (
+                                <div key={qIdx} className="bg-white p-6 rounded-3xl border border-slate-200">
+                                    <div className="flex justify-between mb-4">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Question {qIdx + 1}</span>
+                                        <button onClick={() => {
+                                            const qs = [...newCourse.questions];
+                                            qs.splice(qIdx, 1);
+                                            setNewCourse({...newCourse, questions: qs});
+                                        }} className="text-slate-300 hover:text-red-500"><Icon type="trash" className="w-4 h-4"/></button>
+                                    </div>
+                                    <input placeholder="โจทย์คำถาม" className="w-full p-3 bg-slate-50 rounded-xl mb-4 font-bold" value={q.q} onChange={e => {
+                                        const qs = [...newCourse.questions];
+                                        qs[qIdx].q = e.target.value;
+                                        setNewCourse({...newCourse, questions: qs});
+                                    }} />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {q.options.map((opt, oIdx) => (
+                                            <div key={oIdx} className="relative">
+                                                <input placeholder={`ตัวเลือกที่ ${oIdx+1}`} className={`w-full p-3 pr-10 rounded-xl border-2 transition ${q.a === oIdx ? 'border-green-500 bg-green-50' : 'bg-slate-50 border-transparent'}`} value={opt} onChange={e => {
+                                                    const qs = [...newCourse.questions];
+                                                    qs[qIdx].options[oIdx] = e.target.value;
+                                                    setNewCourse({...newCourse, questions: qs});
+                                                }} />
+                                                <button onClick={() => {
+                                                    const qs = [...newCourse.questions];
+                                                    qs[qIdx].a = oIdx;
+                                                    setNewCourse({...newCourse, questions: qs});
+                                                }} className={`absolute right-3 top-3.5 w-5 h-5 rounded-full border-2 ${q.a === oIdx ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}></button>
+                                            </div>
                                         ))}
                                     </div>
-                                    <div className="mt-8 flex justify-center">
-                                        <button onClick={submitQuiz} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold">ส่งคำตอบ</button>
-                                    </div>
+                                </div>
+                            ))}
+                            
+                            <div className="flex gap-4">
+                                <button onClick={() => setCurrentStep(1)} className="flex-1 py-4 bg-white border-2 border-slate-900 rounded-xl font-bold">ย้อนกลับ</button>
+                                <button onClick={saveCourse} className="flex-[2] py-4 bg-red-600 text-white rounded-xl font-bold shadow-xl hover:bg-red-700 transition">บันทึกบทเรียนทั้งหมด</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+
+            const UserList = () => (
+                <div className="p-8 max-w-6xl mx-auto w-full">
+                    <div className="flex justify-between items-center mb-10">
+                        <div>
+                            <h2 className="text-3xl font-extrabold italic uppercase">User Analytics</h2>
+                            <p className="text-slate-400">ตรวจสอบสถานะการเรียนและจัดการสิทธิ์</p>
+                        </div>
+                        <button onClick={exportCSV} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 hover:bg-green-600 transition">
+                            <Icon type="layout" className="w-4 h-4"/> Export CSV
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50 border-b text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <tr>
+                                        <th className="p-6">Employee Details</th>
+                                        <th className="p-6">Role / Dept</th>
+                                        <th className="p-6">Overall Progress</th>
+                                        <th className="p-6 text-right">Admin Control</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {allUsers.map(u => (
+                                        <tr key={u.id} className="hover:bg-slate-50/50 transition">
+                                            <td className="p-6">
+                                                <p className="font-bold text-slate-800">{u.name}</p>
+                                                <p className="text-xs text-slate-400">{u.email}</p>
+                                            </td>
+                                            <td className="p-6">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : u.role === 'owner' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>{u.role}</span>
+                                                    <span className="text-[10px] font-bold text-slate-300 uppercase">{u.company}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-blue-600 transition-all" style={{width: `${u.progress || 0}%`}}></div>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-600">{u.progress || 0}%</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-6 text-right">
+                                                {profile.role === 'owner' && u.role !== 'owner' && (
+                                                    <button onClick={() => promoteAdmin(u.id, u.role)} className="text-xs font-bold bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-900 hover:text-white transition">
+                                                        {u.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
+                                                    </button>
+                                                )}
+                                                {profile.role === 'admin' && u.role === 'trainee' && <span className="text-xs text-slate-300 italic">No Access</span>}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // --- Learning Experience ---
+
+            const CoursePlayer = () => (
+                <div className="p-8 max-w-5xl mx-auto w-full">
+                    <button onClick={() => setView('dashboard')} className="flex items-center gap-2 text-slate-400 font-bold mb-6 hover:text-slate-900 transition underline">← BACK TO DASHBOARD</button>
+                    <div className="aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl mb-8">
+                        <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeCourse.videoId}`} frameBorder="0" allowFullScreen></iframe>
+                    </div>
+                    <div className="bg-white p-8 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm border border-slate-100">
+                        <div className="text-center md:text-left">
+                            <h2 className="text-2xl font-black italic uppercase text-slate-800">{activeCourse.title}</h2>
+                            <p className="text-slate-400">เมื่อรับชมวิดีโอจบแล้ว กรุณาทำแบบทดสอบเพื่อรับสิทธิ์การผ่านบทเรียน</p>
+                        </div>
+                        <button onClick={() => setView('quiz')} className="bg-red-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl hover:scale-105 transition active:scale-95">เริ่มทำแบบทดสอบ</button>
+                    </div>
+                </div>
+            );
+
+            const Quiz = () => {
+                const [currentQ, setCurrentQ] = useState(0);
+                const q = activeCourse.questions[currentQ];
+
+                return (
+                    <div className="p-8 max-w-xl mx-auto w-full flex items-center justify-center min-h-[80vh]">
+                        <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 w-full">
+                            <div className="flex justify-between items-center mb-8">
+                                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full uppercase">Question {currentQ + 1} of {activeCourse.questions.length}</span>
+                                <div className="w-1/2 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-red-600" style={{width: `${((currentQ+1)/activeCourse.questions.length)*100}%`}}></div>
                                 </div>
                             </div>
-                        )}
-
-                        {view === 'result' && (
-                            <div className="flex flex-col items-center justify-center text-center p-6">
-                                <h2 className="text-4xl font-black italic uppercase mb-2">Complete!</h2>
-                                <p className="text-xl text-slate-400 font-bold mb-10">Score: {profile.coursesStatus[activeCourse.id].score}%</p>
-                                <button onClick={() => setView('dashboard')} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold shadow-xl">Back to Home</button>
+                            <h3 className="text-xl font-bold text-slate-800 mb-8">{q.q}</h3>
+                            <div className="space-y-3">
+                                {q.options.map((opt, i) => (
+                                    <button key={i} onClick={() => setUserAnswers({...userAnswers, [currentQ]: i})} className={`w-full p-5 rounded-2xl border-2 text-left font-bold transition-all ${userAnswers[currentQ] === i ? 'border-red-600 bg-red-50 text-red-700 shadow-md' : 'border-slate-50 bg-slate-50 text-slate-500 hover:border-slate-100'}`}>
+                                        {opt}
+                                    </button>
+                                ))}
                             </div>
-                        )}
-                    </main>
+                            <div className="mt-10 flex justify-between">
+                                <button disabled={currentQ === 0} onClick={() => setCurrentQ(currentQ - 1)} className="text-slate-300 font-bold disabled:opacity-0 underline">ย้อนกลับ</button>
+                                {currentQ === activeCourse.questions.length - 1 ? (
+                                    <button onClick={finalizeQuiz} className="bg-red-600 text-white px-10 py-4 rounded-2xl font-bold shadow-lg">ส่งคำตอบทั้งหมด</button>
+                                ) : (
+                                    <button onClick={() => setCurrentQ(currentQ + 1)} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold shadow-lg">ข้อถัดไป</button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const Result = () => {
+                const res = profile.coursesStatus[activeCourse.id];
+                return (
+                    <div className="h-full flex flex-col items-center justify-center p-8 text-center min-h-[80vh]">
+                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-2xl ${res.status === 'Passed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                            {res.status === 'Passed' ? '✓' : '!'}
+                        </div>
+                        <h2 className="text-4xl font-black italic uppercase mb-2">{res.status === 'Passed' ? 'Passed' : 'Not Passed'}</h2>
+                        <p className="text-xl font-bold text-slate-400 mb-10">คะแนนที่ทำได้: {res.score}% (เกณฑ์ผ่าน {activeCourse.passScore}%)</p>
+                        <button onClick={() => setView('dashboard')} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold shadow-xl">กลับไปที่หน้าหลัก</button>
+                    </div>
+                );
+            };
+
+            // --- Router ---
+
+            if (view === 'login') return <Login />;
+            if (view === 'register') return <Register />;
+
+            return (
+                <div className="flex">
+                    <Sidebar />
+                    <div className="flex-1 bg-slate-50 custom-scroll overflow-y-auto h-screen">
+                        {view === 'dashboard' && <Dashboard />}
+                        {view === 'builder' && <Builder />}
+                        {view === 'users' && <UserList />}
+                        {view === 'course' && <CoursePlayer />}
+                        {view === 'quiz' && <Quiz />}
+                        {view === 'result' && <Result />}
+                    </div>
                 </div>
             );
         }
