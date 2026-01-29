@@ -12,15 +12,27 @@
         .view { display: none; }
         .view.active { display: block; }
         .view.active-flex { display: flex; }
+        .loader-dot { animation: dot 1.4s infinite linear; }
+        @keyframes dot { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
 
     <!-- LOADING OVERLAY -->
-    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center text-white">
-        <div class="flex flex-col items-center gap-4">
-            <div class="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-            <p class="font-bold italic">SKS SYSTEM INITIALIZING...</p>
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center text-white transition-opacity duration-500">
+        <div class="flex flex-col items-center gap-6 px-6 text-center">
+            <div class="relative">
+                <div class="w-16 h-16 border-4 border-slate-800 rounded-full"></div>
+                <div class="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+            </div>
+            <div>
+                <p class="font-bold italic text-xl tracking-widest mb-2">SKS SYSTEM INITIALIZING</p>
+                <p id="loading-status" class="text-slate-500 text-sm font-mono">Connecting to services...</p>
+            </div>
+            <!-- Fallback Button if stuck -->
+            <button id="retry-btn" onclick="location.reload()" class="hidden mt-4 px-6 py-2 bg-red-600 rounded-full text-xs font-bold animate-bounce">
+                เชื่อมต่อนานผิดปกติ? กดเพื่อลองใหม่
+            </button>
         </div>
     </div>
 
@@ -41,17 +53,17 @@
                     <input type="email" id="emailInput" required class="w-full p-4 mt-1 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 transition" placeholder="owner@sks.com">
                 </div>
 
-                <div id="reg-fields" class="hidden space-y-4 pt-4 border-t border-slate-100">
-                    <p class="text-xs font-bold text-red-500 italic">ลงทะเบียนพนักงานใหม่ (ครั้งแรก)</p>
+                <div id="reg-fields" class="hidden space-y-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2">
+                    <p class="text-xs font-bold text-red-500 italic">ลงทะเบียนพนักงานใหม่</p>
                     <input type="text" id="regName" placeholder="ชื่อ-นามสกุล" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 transition">
                     <input type="text" id="regCompany" placeholder="ชื่อบริษัทขนส่ง" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 transition">
                 </div>
 
-                <button type="submit" id="submitBtn" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-red-600 shadow-xl transition-all">
+                <button type="submit" id="submitBtn" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-red-600 shadow-xl transition-all disabled:opacity-50">
                     เข้าสู่ระบบ
                 </button>
             </form>
-            <p id="login-status" class="mt-4 text-center text-xs text-slate-400"></p>
+            <p id="login-status-msg" class="mt-4 text-center text-xs text-slate-400 min-h-[1em]"></p>
         </div>
     </div>
 
@@ -62,7 +74,7 @@
             <aside class="w-72 bg-slate-900 text-white p-8 hidden lg:flex flex-col fixed h-full">
                 <div class="flex items-center gap-3 mb-10">
                     <div class="bg-red-600 p-2 rounded-lg"><i data-lucide="zap" class="w-5 h-5"></i></div>
-                    <span class="font-bold text-xl tracking-tight italic">SKS PORTAL</span>
+                    <span class="font-bold text-xl tracking-tight italic uppercase">SKS Portal</span>
                 </div>
                 
                 <nav id="nav-container" class="space-y-2 flex-1"></nav>
@@ -76,12 +88,12 @@
                 </div>
             </aside>
 
-            <!-- Content Area -->
+            <!-- Main Content -->
             <main class="flex-1 lg:ml-72 p-6 md:p-12">
-                <!-- Sections dynamically toggled -->
-                <section id="sec-manage-admins" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <!-- Sections: Manage Admins -->
+                <section id="sec-manage-admins" class="hidden">
                     <h2 class="text-3xl font-black mb-8">จัดการสิทธิ์ Admin</h2>
-                    <div class="bg-white p-6 rounded-[2rem] border border-slate-200 mb-8 shadow-sm">
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-200 mb-8">
                         <form id="addAdminForm" class="flex flex-col md:flex-row gap-4">
                             <input type="email" id="newAdminEmail" placeholder="ระบุ Email ผู้ช่วย Admin" required class="flex-1 p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 ring-red-500">
                             <button class="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-red-600 transition-all">เพิ่มสิทธิ์</button>
@@ -90,31 +102,10 @@
                     <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden" id="admin-list-container"></div>
                 </section>
 
-                <section id="sec-quiz-builder" class="hidden">
-                    <h2 class="text-3xl font-black mb-8">คลังแบบทดสอบ</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm h-fit">
-                            <h3 class="font-bold mb-4 text-slate-400 uppercase text-xs tracking-widest">สร้างบทเรียนใหม่</h3>
-                            <div class="space-y-6">
-                                <input type="text" id="quiz-topic" placeholder="หัวข้อบทเรียน" class="w-full p-4 bg-slate-50 rounded-2xl border-none text-xl font-bold outline-none">
-                                <div id="questions-area" class="space-y-4"></div>
-                                <button onclick="addQuestionField()" class="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-red-400 hover:text-red-500 transition-all">+ เพิ่มคำถาม</button>
-                                <button onclick="saveQuiz()" class="w-full py-4 bg-red-600 text-white rounded-2xl font-bold shadow-lg hover:shadow-red-200 transition-all">บันทึกและเผยแพร่</button>
-                            </div>
-                        </div>
-                        <div class="space-y-4">
-                            <h3 class="font-bold text-slate-400 uppercase text-xs tracking-widest">บทเรียนที่เปิดสอนอยู่</h3>
-                            <div id="existing-quizzes" class="space-y-4"></div>
-                        </div>
-                    </div>
-                </section>
-
+                <!-- Sections: Analytics -->
                 <section id="sec-analytics" class="hidden">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                        <h2 class="text-3xl font-black">ข้อมูลพนักงานขนส่ง</h2>
-                        <button onclick="alert('Exporting...')" class="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
-                            <i data-lucide="download" class="w-4 h-4"></i> Export Data
-                        </button>
+                    <div class="flex justify-between items-center mb-8">
+                        <h2 class="text-3xl font-black">ข้อมูลพนักงาน</h2>
                     </div>
                     <div class="bg-white rounded-[2rem] border border-slate-200 overflow-x-auto shadow-sm">
                         <table class="w-full text-left min-w-[600px]">
@@ -123,7 +114,6 @@
                                     <th class="p-6">ชื่อ-นามสกุล / บริษัท</th>
                                     <th class="p-6">Progress</th>
                                     <th class="p-6">สถานะ</th>
-                                    <th class="p-6 text-right">วันที่ลงทะเบียน</th>
                                 </tr>
                             </thead>
                             <tbody id="trainee-table-body"></tbody>
@@ -131,17 +121,15 @@
                     </div>
                 </section>
 
+                <!-- Sections: Trainee View -->
                 <section id="sec-trainee" class="hidden">
                     <h2 class="text-3xl font-black mb-8">บทเรียนและแบบทดสอบ</h2>
                     <div id="trainee-stats" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                         <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
-                            <div class="relative z-10">
-                                <p class="text-slate-400 text-[10px] font-black uppercase mb-2">My Learning Progress</p>
-                                <h3 id="prog-percent" class="text-5xl font-black">0%</h3>
-                            </div>
-                            <div class="absolute -right-4 -bottom-4 opacity-5 text-slate-900"><i data-lucide="graduation-cap" class="w-32 h-32"></i></div>
+                            <p class="text-slate-400 text-[10px] font-black uppercase mb-2">My Learning Progress</p>
+                            <h3 id="prog-percent" class="text-5xl font-black">0%</h3>
                         </div>
-                        <div id="cert-box" class="bg-slate-900 p-8 rounded-[2rem] text-white hidden flex justify-between items-center shadow-xl shadow-slate-200">
+                        <div id="cert-box" class="bg-slate-900 p-8 rounded-[2rem] text-white hidden flex justify-between items-center shadow-xl">
                             <div>
                                 <h3 class="text-2xl font-black italic">CERTIFIED</h3>
                                 <p class="text-slate-400 text-sm font-bold">ผ่านเกณฑ์มาตรฐาน SKS Safety</p>
@@ -165,10 +153,10 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // Global Configuration
+        // Global Vars
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -179,185 +167,190 @@
         let currentUser = null;
         let globalAdmins = [];
         let allQuizzes = [];
-        let firebaseReady = false;
+        let systemInitialized = false;
 
-        // Rule 3 Implementation: Wait for Auth
-        const initSystem = async () => {
+        const updateStatus = (msg) => {
+            const el = document.getElementById('loading-status');
+            if (el) el.innerText = msg;
+        };
+
+        // Rule 3: Auth First Pattern
+        const startApp = async () => {
+            updateStatus("Authenticating with Firebase...");
+            
+            // Timeout Fallback
+            const timeoutId = setTimeout(() => {
+                if (!systemInitialized) {
+                    document.getElementById('retry-btn').classList.remove('hidden');
+                    updateStatus("Connection slow. Still trying...");
+                }
+            }, 5000);
+
             try {
                 await signInAnonymously(auth);
                 
                 onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        firebaseReady = true;
-                        document.getElementById('loading-overlay').classList.add('opacity-0');
-                        setTimeout(() => document.getElementById('loading-overlay').remove(), 500);
+                    if (user && !systemInitialized) {
+                        systemInitialized = true;
+                        clearTimeout(timeoutId);
+                        updateStatus("Ready. Welcome to SKS.");
                         
-                        // Persistent listener for Admin List
-                        onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global'), (snap) => {
-                            if (snap.exists()) {
-                                globalAdmins = snap.data().admins || [];
-                            } else {
-                                setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global'), { admins: [] });
-                            }
-                            renderAdminList();
-                        });
+                        // Load critical config
+                        await loadGlobalConfig();
+                        
+                        // Hide loader
+                        const loader = document.getElementById('loading-overlay');
+                        loader.classList.add('opacity-0');
+                        setTimeout(() => loader.remove(), 500);
                     }
                 });
             } catch (err) {
-                console.error("Auth failed", err);
-                document.getElementById('login-status').innerText = "System Error: Please refresh";
+                console.error("Auth error", err);
+                updateStatus("Authentication failed. Please check internet.");
             }
         };
 
-        // Initialize on load
-        window.onload = () => {
-            initSystem();
-            lucide.createIcons();
+        const loadGlobalConfig = async () => {
+            // Persistent Admin Listener
+            const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global');
+            onSnapshot(configRef, (snap) => {
+                if (snap.exists()) {
+                    globalAdmins = snap.data().admins || [];
+                } else {
+                    setDoc(configRef, { admins: [] });
+                }
+                renderAdminList();
+            }, (err) => console.log("Admin list limited", err));
         };
 
-        // Login Logic
+        // Login UI Logic
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
-            if (!firebaseReady) return alert("System not ready");
-
             const email = document.getElementById('emailInput').value.trim().toLowerCase();
-            const emailKey = email.replace(/[@.]/g, '_');
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', emailKey);
-            
-            document.getElementById('submitBtn').disabled = true;
-            document.getElementById('submitBtn').innerText = 'กำลังตรวจสอบ...';
+            const btn = document.getElementById('submitBtn');
+            const msg = document.getElementById('login-status-msg');
+
+            btn.disabled = true;
+            msg.innerText = "กำลังตรวจสอบบัญชี...";
 
             try {
+                // Bypass for Owner
                 if (email === OWNER_EMAIL) {
                     currentUser = { email, role: 'owner', name: 'SKS Owner', history: {} };
-                    launchApp();
-                } else if (globalAdmins.includes(email)) {
-                    currentUser = { email, role: 'admin', name: 'Staff Admin', history: {} };
-                    launchApp();
+                    launchInterface();
+                    return;
+                }
+
+                // Check Admin
+                if (globalAdmins.includes(email)) {
+                    currentUser = { email, role: 'admin', name: 'SKS Administrator', history: {} };
+                    launchInterface();
+                    return;
+                }
+
+                // Trainee Check
+                const emailKey = email.replace(/[@.]/g, '_');
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', emailKey);
+                const snap = await getDoc(userRef);
+
+                if (snap.exists()) {
+                    currentUser = snap.data();
+                    launchInterface();
                 } else {
-                    const snap = await getDoc(userRef);
-                    if (snap.exists()) {
-                        currentUser = snap.data();
-                        launchApp();
+                    const regFields = document.getElementById('reg-fields');
+                    if (regFields.classList.contains('hidden')) {
+                        regFields.classList.remove('hidden');
+                        btn.innerText = 'ลงทะเบียนเข้าใช้งาน';
+                        btn.disabled = false;
+                        msg.innerText = "ไม่พบข้อมูล กรุณากรอกชื่อและบริษัทเพื่อลงทะเบียน";
                     } else {
-                        // Registration mode
-                        const regFields = document.getElementById('reg-fields');
-                        if (regFields.classList.contains('hidden')) {
-                            regFields.classList.remove('hidden');
-                            document.getElementById('submitBtn').innerText = 'ลงทะเบียนเพื่อเข้าเรียน';
-                            document.getElementById('submitBtn').disabled = false;
-                        } else {
-                            const name = document.getElementById('regName').value;
-                            const company = document.getElementById('regCompany').value;
-                            if (!name || !company) {
-                                alert("กรุณากรอกข้อมูลให้ครบ");
-                                document.getElementById('submitBtn').disabled = false;
-                                return;
-                            }
-                            currentUser = { email, name, company, role: 'trainee', history: {}, joined: new Date().toISOString() };
-                            await setDoc(userRef, currentUser);
-                            launchApp();
-                        }
+                        const name = document.getElementById('regName').value.trim();
+                        const company = document.getElementById('regCompany').value.trim();
+                        if (!name || !company) throw new Error("กรุณากรอกข้อมูลให้ครบ");
+
+                        currentUser = { email, name, company, role: 'trainee', history: {}, joined: new Date().toISOString() };
+                        await setDoc(userRef, currentUser);
+                        launchInterface();
                     }
                 }
             } catch (err) {
-                alert("Login Error: " + err.message);
-                document.getElementById('submitBtn').disabled = false;
+                msg.innerText = err.message;
+                btn.disabled = false;
             }
         };
 
-        function launchApp() {
+        function launchInterface() {
             document.getElementById('view-login').classList.remove('active-flex');
             document.getElementById('view-main').classList.add('active');
-            
             document.getElementById('user-display-name').innerText = currentUser.name;
             document.getElementById('role-badge').innerText = currentUser.role;
-            
-            setupNavigation();
-            syncData();
+
+            buildNav();
+            syncAppData();
         }
 
-        function setupNavigation() {
+        function buildNav() {
             const nav = document.getElementById('nav-container');
             nav.innerHTML = '';
             const menu = [];
 
-            if (currentUser.role === 'owner') {
-                menu.push({ id: 'manage-admins', icon: 'shield', label: 'จัดการสิทธิ์' });
-            }
-            if (currentUser.role === 'owner' || currentUser.role === 'admin') {
-                menu.push({ id: 'quiz-builder', icon: 'file-edit', label: 'เนื้อหาบทเรียน' });
-                menu.push({ id: 'analytics', icon: 'users', label: 'ข้อมูลพนักงาน' });
-            }
-            menu.push({ id: 'trainee', icon: 'play-circle', label: 'การเรียนของฉัน' });
+            if (currentUser.role === 'owner') menu.push({ id: 'manage-admins', icon: 'shield', label: 'จัดการสิทธิ์' });
+            if (currentUser.role === 'owner' || currentUser.role === 'admin') menu.push({ id: 'analytics', icon: 'users', label: 'วิเคราะห์พนักงาน' });
+            menu.push({ id: 'trainee', icon: 'play-circle', label: 'บทเรียนของฉัน' });
 
             menu.forEach(item => {
-                const btn = document.createElement('button');
-                btn.className = "w-full flex items-center gap-3 p-4 rounded-2xl text-slate-400 hover:bg-slate-800 transition-all font-bold text-sm";
-                btn.onclick = () => showSection(item.id);
-                btn.innerHTML = `<i data-lucide="${item.icon}" class="w-5 h-5"></i> <span>${item.label}</span>`;
-                nav.appendChild(btn);
+                const b = document.createElement('button');
+                b.className = "w-full flex items-center gap-3 p-4 rounded-2xl text-slate-400 hover:bg-slate-800 transition-all font-bold text-sm";
+                b.onclick = () => {
+                    document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+                    document.getElementById(`sec-${item.id}`).classList.remove('hidden');
+                };
+                b.innerHTML = `<i data-lucide="${item.icon}" class="w-5 h-5"></i> <span>${item.label}</span>`;
+                nav.appendChild(b);
             });
-            showSection(menu[0].id);
+            document.getElementById(`sec-${menu[0].id}`).classList.remove('hidden');
             lucide.createIcons();
         }
 
-        window.showSection = (id) => {
-            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(`sec-${id}`).classList.remove('hidden');
-        };
-
-        // Data Syncing
-        function syncData() {
+        function syncAppData() {
             // Quizzes
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'quizzes'), (snap) => {
                 allQuizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderTraineeView();
-                renderQuizEditorList();
             });
 
-            // Trainees (Admin View)
+            // Analytics (Admin Only)
             if (currentUser.role !== 'trainee') {
                 onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
                     const tbody = document.getElementById('trainee-table-body');
                     if (!tbody) return;
                     tbody.innerHTML = '';
-                    snap.forEach(docSnap => {
-                        const u = docSnap.data();
+                    snap.forEach(d => {
+                        const u = d.data();
                         if (u.role !== 'trainee') return;
-                        const totalQ = allQuizzes.length || 1;
-                        const doneQ = Object.keys(u.history || {}).length;
-                        const progress = Math.round((doneQ / totalQ) * 100);
-                        
+                        const prog = allQuizzes.length ? Math.round((Object.keys(u.history||{}).length / allQuizzes.length) * 100) : 0;
                         tbody.innerHTML += `
-                            <tr class="border-t border-slate-50 hover:bg-slate-50/50">
+                            <tr class="border-t border-slate-50">
                                 <td class="p-6">
                                     <p class="font-bold text-slate-800">${u.name}</p>
-                                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">${u.company}</p>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-widest">${u.company}</p>
                                 </td>
                                 <td class="p-6">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                            <div class="bg-red-500 h-full transition-all" style="width:${progress}%"></div>
-                                        </div>
-                                        <span class="text-[10px] font-bold text-slate-400">${progress}%</span>
+                                    <div class="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-red-600" style="width:${prog}%"></div>
                                     </div>
                                 </td>
-                                <td class="p-6">
-                                    <span class="text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter ${progress === 100 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">
-                                        ${progress === 100 ? 'Completed' : 'Learning'}
-                                    </span>
-                                </td>
-                                <td class="p-6 text-right text-xs text-slate-300 font-mono">${(u.joined || '').split('T')[0]}</td>
+                                <td class="p-6"><span class="text-[10px] font-black uppercase">${prog === 100 ? 'Completed' : 'Learning'}</span></td>
                             </tr>
                         `;
                     });
                 });
             }
 
-            // Real-time Update for Current Trainee
+            // Real-time Current User
             if (currentUser.role === 'trainee') {
-                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.email.replace(/[@.]/g, '_')), (snap) => {
+                const emailKey = currentUser.email.replace(/[@.]/g, '_');
+                onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', emailKey), (snap) => {
                     if (snap.exists()) {
                         currentUser = snap.data();
                         renderTraineeView();
@@ -366,14 +359,22 @@
             }
         }
 
-        // Admin Management (Owner Only)
-        document.getElementById('addAdminForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('newAdminEmail').value.trim().toLowerCase();
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'global'), { admins: arrayUnion(email) });
-            document.getElementById('newAdminEmail').value = '';
-            alert("บันทึกสิทธิ์เรียบร้อย");
-        };
+        // Render functions
+        function renderAdminList() {
+            const c = document.getElementById('admin-list-container');
+            if (!c) return;
+            if (!globalAdmins.length) {
+                c.innerHTML = `<p class="p-10 text-center text-slate-400 text-sm italic">ยังไม่มีผู้ช่วยแอดมิน</p>`;
+                return;
+            }
+            c.innerHTML = globalAdmins.map(email => `
+                <div class="flex justify-between items-center p-6 border-b border-slate-50 last:border-none">
+                    <span class="font-bold text-slate-700">${email}</span>
+                    <button onclick="removeAdmin('${email}')" class="text-slate-300 hover:text-red-500"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
 
         window.removeAdmin = async (email) => {
             if (confirm(`ยกเลิกสิทธิ์ Admin ของ ${email}?`)) {
@@ -381,136 +382,58 @@
             }
         };
 
-        function renderAdminList() {
-            const container = document.getElementById('admin-list-container');
-            if (!container) return;
-            if (globalAdmins.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-slate-400 text-sm">ยังไม่มีผู้ช่วย Admin ในระบบ</p>`;
-                return;
-            }
-            container.innerHTML = globalAdmins.map(email => `
-                <div class="flex justify-between items-center p-6 border-b border-slate-50 last:border-none">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-red-50 text-red-600 rounded-full flex items-center justify-center"><i data-lucide="user-check" class="w-5 h-5"></i></div>
-                        <span class="font-bold text-slate-700">${email}</span>
-                    </div>
-                    <button onclick="removeAdmin('${email}')" class="text-slate-200 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
-                </div>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        // Quiz Builder
-        let buildQ = [];
-        window.addQuestionField = () => {
-            const id = buildQ.length;
-            buildQ.push({ q: '', choices: ['', '', ''], correct: 0 });
-            const div = document.createElement('div');
-            div.className = "p-6 bg-slate-50 rounded-2xl space-y-4 border border-slate-100";
-            div.innerHTML = `
-                <input type="text" placeholder="โจทย์คำถาม" class="w-full p-2 bg-transparent border-b-2 border-slate-200 font-bold outline-none focus:border-red-500" onchange="buildQ[${id}].q = this.value">
-                <div class="space-y-2">
-                    ${[0, 1, 2].map(i => `
-                        <div class="flex items-center gap-3">
-                            <input type="radio" name="correct-${id}" onchange="buildQ[${id}].correct = ${i}" ${i === 0 ? 'checked' : ''}>
-                            <input type="text" placeholder="ตัวเลือกที่ ${i+1}" class="flex-1 bg-white p-2 rounded-lg text-sm border-none shadow-sm" onchange="buildQ[${id}].choices[${i}] = this.value">
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            document.getElementById('questions-area').appendChild(div);
-        };
-
-        window.saveQuiz = async () => {
-            const topic = document.getElementById('quiz-topic').value;
-            if (!topic || buildQ.length === 0) return alert("กรุณาระบุหัวข้อและสร้างคำถามอย่างน้อย 1 ข้อ");
-            const qId = 'quiz_' + Date.now();
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', qId), {
-                topic, questions: buildQ, createdAt: new Date().toISOString()
-            });
-            alert("บันทึกสำเร็จ!");
-            document.getElementById('questions-area').innerHTML = '';
-            document.getElementById('quiz-topic').value = '';
-            buildQ = [];
-        };
-
-        function renderQuizEditorList() {
-            const container = document.getElementById('existing-quizzes');
-            if (!container) return;
-            container.innerHTML = allQuizzes.map(q => `
-                <div class="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
-                    <div>
-                        <p class="font-bold text-slate-800">${q.topic}</p>
-                        <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">${q.questions.length} Questions</p>
-                    </div>
-                    <button class="text-slate-200 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </div>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        // Trainee View
         function renderTraineeView() {
             const list = document.getElementById('quiz-list');
             if (!list) return;
             list.innerHTML = '';
-            let completed = 0;
-
+            let done = 0;
+            
             allQuizzes.forEach(q => {
-                const history = currentUser.history || {};
-                const isDone = !!history[q.id];
-                if (isDone) completed++;
-
+                const isDone = !!(currentUser.history || {})[q.id];
+                if (isDone) done++;
                 list.innerHTML += `
-                    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-500 group">
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 flex flex-col justify-between shadow-sm hover:shadow-lg transition-all">
                         <div>
-                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${isDone ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-300 group-hover:bg-red-50 group-hover:text-red-500 transition-colors'}">
-                                <i data-lucide="${isDone ? 'check-circle' : 'play'}" class="w-6 h-6"></i>
+                            <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center mb-6 text-slate-300">
+                                <i data-lucide="${isDone ? 'check-circle' : 'play-circle'}" class="w-6 h-6 ${isDone ? 'text-emerald-500' : ''}"></i>
                             </div>
-                            <h4 class="text-xl font-bold mb-1 text-slate-800">${q.topic}</h4>
-                            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-10">${q.questions.length} บททดสอบความรู้</p>
+                            <h4 class="text-xl font-bold text-slate-800 mb-2">${q.topic}</h4>
+                            <p class="text-[10px] text-slate-400 font-black uppercase mb-8">${q.questions.length} Questions</p>
                         </div>
-                        <button onclick="startQuiz('${q.id}')" ${isDone ? 'disabled' : ''} class="w-full py-4 rounded-2xl font-black text-sm tracking-tight ${isDone ? 'bg-slate-50 text-slate-300' : 'bg-slate-900 text-white hover:bg-red-600 transition-all shadow-lg'}">
-                            ${isDone ? 'สำเร็จการศึกษาแล้ว' : 'เริ่มเรียนรู้'}
+                        <button onclick="startQuiz('${q.id}')" ${isDone ? 'disabled' : ''} class="w-full py-4 rounded-xl font-black text-sm ${isDone ? 'bg-slate-50 text-slate-300' : 'bg-slate-900 text-white hover:bg-red-600'} transition-all">
+                            ${isDone ? 'COMPLETED' : 'START LESSON'}
                         </button>
                     </div>
                 `;
             });
 
-            const percent = allQuizzes.length > 0 ? Math.round((completed / allQuizzes.length) * 100) : 0;
-            document.getElementById('prog-percent').innerText = `${percent}%`;
-            if (percent === 100 && allQuizzes.length > 0) document.getElementById('cert-box').classList.remove('hidden');
+            const p = allQuizzes.length ? Math.round((done / allQuizzes.length) * 100) : 0;
+            document.getElementById('prog-percent').innerText = `${p}%`;
+            if (p === 100 && allQuizzes.length > 0) document.getElementById('cert-box').classList.remove('hidden');
             lucide.createIcons();
         }
 
         window.startQuiz = (id) => {
-            const q = allQuizzes.find(item => item.id === id);
+            const q = allQuizzes.find(x => x.id === id);
             const modal = document.getElementById('quiz-modal');
-            const content = document.getElementById('modal-content');
             modal.classList.remove('hidden');
-
-            content.innerHTML = `
-                <div class="mb-10">
-                    <p class="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mb-2">Examination</p>
-                    <h3 class="text-3xl font-black text-slate-900">${q.topic}</h3>
-                </div>
-                <form id="activeQuizForm" class="space-y-10">
+            document.getElementById('modal-content').innerHTML = `
+                <div class="mb-8"><h3 class="text-3xl font-black">${q.topic}</h3></div>
+                <form id="activeQuizForm" class="space-y-8">
                     ${q.questions.map((item, idx) => `
-                        <div class="space-y-6">
-                            <p class="font-bold text-lg text-slate-800 flex gap-3">
-                                <span class="text-red-600">Q${idx+1}.</span> ${item.q}
-                            </p>
-                            <div class="grid grid-cols-1 gap-3">
-                                ${item.choices.map((choice, ci) => `
-                                    <label class="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl cursor-pointer hover:bg-slate-100 transition-all border-2 border-transparent has-[:checked]:border-red-600 has-[:checked]:bg-white">
+                        <div class="space-y-4">
+                            <p class="font-bold text-lg text-slate-800">${idx+1}. ${item.q}</p>
+                            <div class="grid gap-2">
+                                ${item.choices.map((c, ci) => `
+                                    <label class="p-4 bg-slate-50 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-slate-100">
                                         <input type="radio" name="q${idx}" value="${ci}" required class="w-5 h-5 accent-red-600">
-                                        <span class="text-slate-700 font-bold">${choice}</span>
+                                        <span class="font-bold text-slate-700">${c}</span>
                                     </label>
                                 `).join('')}
                             </div>
                         </div>
                     `).join('')}
-                    <button type="submit" class="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-2xl hover:bg-red-600 transition-all">ส่งคำตอบและบันทึกคะแนน</button>
+                    <button class="w-full bg-slate-900 text-white py-5 rounded-2xl font-black shadow-xl hover:bg-red-600">ส่งคำตอบ</button>
                 </form>
             `;
 
@@ -518,21 +441,24 @@
                 e.preventDefault();
                 const fd = new FormData(e.target);
                 let score = 0;
-                q.questions.forEach((item, idx) => {
-                    if (parseInt(fd.get(`q${idx}`)) === item.correct) score++;
-                });
+                q.questions.forEach((it, idx) => { if (parseInt(fd.get(`q${idx}`)) === it.correct) score++; });
 
                 if (score === q.questions.length) {
-                    const emailKey = currentUser.email.replace(/[@.]/g, '_');
-                    const uRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', emailKey);
-                    await updateDoc(uRef, { [`history.${id}`]: { score, date: new Date().toISOString() } });
+                    const key = currentUser.email.replace(/[@.]/g, '_');
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', key), {
+                        [`history.${id}`]: { score, at: new Date().toISOString() }
+                    });
                     modal.classList.add('hidden');
-                    alert("ยินดีด้วย! คุณผ่านเกณฑ์ 100%");
+                    alert("เก่งมาก! คุณสอบผ่าน 100%");
                 } else {
-                    alert(`คะแนนของคุณคือ ${score}/${q.questions.length}\nคุณต้องได้คะแนนเต็มเพื่อผ่านบทเรียนนี้ กรุณาลองใหม่อีกครั้ง`);
+                    alert(`คุณได้ ${score}/${q.questions.length} คะแนน ต้องได้เต็มเท่านั้นจึงจะผ่าน`);
                 }
             };
         };
+
+        // Start
+        startApp();
+        lucide.createIcons();
 
     </script>
 </body>
