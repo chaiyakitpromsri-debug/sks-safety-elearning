@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SKS Safety E-Learning</title>
-    <!-- ใช้งาน Tailwind CSS และ Lucide Icons ผ่าน CDN (ไม่ต้องติดตั้ง) -->
+    <title>SKS Safety E-Learning & Data Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -17,108 +16,165 @@
 </head>
 <body class="bg-slate-50 text-slate-900">
 
-    <!-- 1. ส่วนหน้า LOGIN -->
+    <!-- 1. หน้า LOGIN -->
     <div id="view-login" class="view active-flex min-h-screen items-center justify-center bg-slate-900 p-6">
-        <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center">
+        <div class="glass-card bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center">
             <div class="w-20 h-20 bg-red-50 flex items-center justify-center rounded-3xl mx-auto mb-6">
                 <i data-lucide="shield" class="w-10 h-10 text-red-600"></i>
             </div>
-            <h1 class="text-3xl font-bold mb-2">SKS Safety</h1>
-            <p class="text-slate-500 mb-8">E-Learning & Data Tracking</p>
+            <h1 class="text-3xl font-bold mb-2 tracking-tight">SKS Safety</h1>
+            <p class="text-slate-500 mb-8">Logistics Training Platform</p>
             <form id="loginForm" class="space-y-4 text-left">
                 <div>
-                    <label class="text-xs font-bold text-slate-400 uppercase ml-2">Email Address</label>
-                    <input type="email" id="emailInput" required class="w-full p-4 mt-1 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 transition" placeholder="name@company.com">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Employee Email</label>
+                    <input type="email" id="emailInput" required class="w-full p-4 mt-1 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 transition" placeholder="yourname@sks.com">
                 </div>
-                <button type="submit" class="w-full bg-red-600 text-white py-4 rounded-2xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all">เข้าสู่ระบบ</button>
+                <button type="submit" class="w-full bg-red-600 text-white py-4 rounded-2xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all transform active:scale-95">เข้าสู่ระบบ</button>
             </form>
-            <div class="mt-8 p-4 bg-slate-50 rounded-2xl">
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Owner Access</p>
+            <div class="mt-8 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Owner Master Access</p>
                 <p class="text-sm text-slate-600 font-mono">owner@sks.com</p>
             </div>
         </div>
     </div>
 
-    <!-- 2. ส่วนหน้าจอหลักหลัง Login -->
+    <!-- 2. หน้าจอหลัก (MAIN LAYOUT) -->
     <div id="view-main" class="view min-h-screen">
-        <div class="flex min-h-screen">
-            <!-- Sidebar เมนูข้าง -->
-            <aside class="w-72 bg-slate-900 text-white p-8 hidden md:flex flex-col">
+        <div class="flex min-h-screen relative">
+            
+            <!-- Sidebar -->
+            <aside class="w-72 bg-slate-900 text-white p-8 hidden lg:flex flex-col sticky top-0 h-screen">
                 <div class="flex items-center gap-3 mb-12">
-                    <div class="bg-red-600 p-2 rounded-lg"><i data-lucide="shield" class="w-6 h-6 text-white"></i></div>
-                    <h1 class="font-bold text-xl tracking-tight">SKS Safety</h1>
+                    <div class="bg-red-600 p-2 rounded-lg"><i data-lucide="truck" class="w-6 h-6 text-white"></i></div>
+                    <h1 class="font-bold text-xl tracking-tight">SKS Logistics</h1>
                 </div>
+                
                 <nav class="space-y-2 flex-1">
-                    <button onclick="showSection('dashboard')" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl transition hover:bg-slate-800 text-slate-400" id="btn-dash">
-                        <i data-lucide="layout"></i> <span class="font-bold">หน้าหลัก</span>
+                    <button onclick="showSection('dashboard')" id="btn-dashboard" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl transition text-slate-400 hover:bg-slate-800">
+                        <i data-lucide="book-open"></i> <span class="font-bold">หลักสูตรการเทรน</span>
                     </button>
-                    <div id="admin-only-menu" class="hidden">
-                        <button onclick="showSection('admin')" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl transition hover:bg-slate-800 text-slate-400" id="btn-admin">
-                            <i data-lucide="users"></i> <span class="font-bold">จัดการผู้ใช้</span>
+                    
+                    <!-- ส่วนของ Admin/Owner เท่านั้น -->
+                    <div id="admin-menu" class="hidden space-y-2 pt-4 mt-4 border-t border-slate-800">
+                        <p class="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Management</p>
+                        <button onclick="showSection('users')" id="btn-users" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl transition text-slate-400 hover:bg-slate-800">
+                            <i data-lucide="user-cog"></i> <span class="font-bold">จัดการพนักงาน</span>
+                        </button>
+                        <button onclick="showSection('analytics')" id="btn-analytics" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl transition text-slate-400 hover:bg-slate-800">
+                            <i data-lucide="bar-chart-3"></i> <span class="font-bold">ประวัติ & Export</span>
                         </button>
                     </div>
                 </nav>
-                <button onclick="location.reload()" class="flex items-center gap-3 p-4 text-slate-500 hover:text-white transition">
-                    <i data-lucide="log-out"></i> ออกจากระบบ
-                </button>
+
+                <div class="pt-6 border-t border-slate-800">
+                    <button onclick="location.reload()" class="flex items-center gap-3 p-4 w-full text-slate-500 hover:text-red-400 transition-colors">
+                        <i data-lucide="log-out"></i> ออกจากระบบ
+                    </button>
+                </div>
             </aside>
 
-            <!-- Main Content ส่วนเนื้อหา -->
-            <main class="flex-1 p-6 md:p-12 overflow-y-auto">
-                <!-- Section: Dashboard (หน้าของพนักงาน) -->
+            <!-- Main Content -->
+            <main class="flex-1 p-6 lg:p-12 overflow-y-auto">
+                
+                <!-- Section: Dashboard (Trainee Courses) -->
                 <section id="section-dashboard" class="content-section">
-                    <header class="mb-10">
-                        <h2 class="text-4xl font-bold text-slate-800">สวัสดี, <span id="display-name">...</span></h2>
-                        <div class="flex items-center gap-2 mt-2">
-                            <span id="display-role" class="px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold uppercase"></span>
-                            <span class="text-slate-400 text-sm">| SKS Safety Platform</span>
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+                        <div>
+                            <h2 class="text-4xl font-black text-slate-800 tracking-tight">หลักสูตรความปลอดภัย</h2>
+                            <p class="text-slate-500 mt-1">ยินดีต้อนรับคุณ <span id="user-name-label" class="font-bold text-red-600">...</span></p>
                         </div>
-                    </header>
-                    <div id="course-list" class="grid grid-cols-1 md:grid-cols-2 gap-8 text-slate-900">
-                        <!-- บทเรียนจะโหลดจากระบบ -->
+                        <div id="owner-add-btn" class="hidden">
+                            <button onclick="openAddCourseModal()" class="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-red-600 transition-all shadow-xl shadow-slate-200">
+                                <i data-lucide="plus-circle" class="w-5 h-5"></i> เพิ่มบทเรียนใหม่
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="courses-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <!-- โหลดจาก Firebase -->
                     </div>
                 </section>
 
-                <!-- Section: Admin (หน้าจัดการสิทธิ์ - เฉพาะ Owner/Admin) -->
-                <section id="section-admin" class="content-section hidden">
-                    <h2 class="text-3xl font-bold mb-8 text-slate-800">ระบบจัดการผู้ได้รับอนุญาต (Whitelist)</h2>
-                    <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 mb-10">
+                <!-- Section: User Management -->
+                <section id="section-users" class="content-section hidden">
+                    <h2 class="text-3xl font-black mb-8 text-slate-800">จัดการสิทธิ์พนักงาน (Whitelist)</h2>
+                    
+                    <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 mb-8">
                         <form id="addUserForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <input id="newName" placeholder="ชื่อ-นามสกุล" required class="p-4 border-2 border-slate-50 rounded-2xl outline-none focus:border-red-600 transition">
-                            <input id="newEmail" type="email" placeholder="อีเมล (เมลจริง)" required class="p-4 border-2 border-slate-50 rounded-2xl outline-none focus:border-red-600 transition">
-                            <select id="newRole" class="p-4 border-2 border-slate-50 rounded-2xl outline-none bg-white">
-                                <option value="trainee">Trainee (พนักงาน)</option>
-                                <option value="admin">Admin (หัวหน้า)</option>
+                            <input id="newUserName" placeholder="ชื่อ-นามสกุล" required class="p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 transition">
+                            <input id="newUserEmail" type="email" placeholder="อีเมลพนักงาน" required class="p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 transition">
+                            <select id="newUserRole" class="p-4 bg-slate-50 rounded-2xl outline-none appearance-none">
+                                <option value="trainee">Trainee (พนักงานขับรถ)</option>
+                                <option value="admin">Admin (ผู้ดูแล)</option>
                             </select>
-                            <button type="submit" class="bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 shadow-lg shadow-red-100">เพิ่มสิทธิ์</button>
+                            <button type="submit" class="bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-100">อนุมัติสิทธิ์</button>
                         </form>
                     </div>
+
                     <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50/50">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-400 font-black text-[10px] uppercase tracking-widest">
                                 <tr>
-                                    <th class="p-6 text-slate-400 font-bold uppercase text-[10px]">รายชื่อ</th>
-                                    <th class="p-6 text-slate-400 font-bold uppercase text-[10px]">สิทธิ์</th>
-                                    <th class="p-6 text-slate-400 font-bold uppercase text-[10px] text-right">ลบ</th>
+                                    <th class="p-6">ข้อมูลพนักงาน</th>
+                                    <th class="p-6 text-center">ระดับสิทธิ์</th>
+                                    <th class="p-6 text-right">ดำเนินการ</th>
                                 </tr>
                             </thead>
-                            <tbody id="user-table-body" class="text-slate-900">
-                                <!-- รายชื่อโหลดจาก Firebase -->
-                            </tbody>
+                            <tbody id="users-table-body"></tbody>
                         </table>
                     </div>
                 </section>
+
+                <!-- Section: History & Analytics -->
+                <section id="section-analytics" class="content-section hidden">
+                    <div class="flex items-center justify-between mb-8">
+                        <h2 class="text-3xl font-black text-slate-800">ประวัติการเทรน & Data Export</h2>
+                        <button onclick="exportToCSV()" class="bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100">
+                            <i data-lucide="download"></i> Export to CSV
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                        <table class="w-full text-left" id="analytics-table">
+                            <thead class="bg-slate-50 text-slate-400 font-black text-[10px] uppercase tracking-widest">
+                                <tr>
+                                    <th class="p-6">ชื่อพนักงาน</th>
+                                    <th class="p-6">บทเรียน</th>
+                                    <th class="p-6 text-center">สถานะ</th>
+                                    <th class="p-6 text-center">คะแนนล่าสุด</th>
+                                    <th class="p-6 text-right">ใบเซอร์ฯ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-table-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>
 
-    <!-- ส่วนเชื่อมต่อ Firebase (Backend) -->
+    <!-- Modal: Add New Course (For Owner) -->
+    <div id="course-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl">
+            <h3 class="text-2xl font-black mb-6">สร้างบทเรียนใหม่</h3>
+            <form id="addCourseForm" class="space-y-4 text-slate-900">
+                <input id="courseTitle" placeholder="หัวข้อบทเรียน (เช่น ความปลอดภัยภายนอก)" required class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-red-600">
+                <textarea id="courseDesc" placeholder="คำอธิบายสั้นๆ" required class="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 h-32"></textarea>
+                <div class="flex gap-4">
+                    <button type="button" onclick="closeCourseModal()" class="flex-1 py-4 font-bold text-slate-400 hover:text-slate-600">ยกเลิก</button>
+                    <button type="submit" class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all">บันทึกบทเรียน</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // Firebase Config ของคุณ
         const firebaseConfig = {
             apiKey: "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
             authDomain: "safety-e-learning-15c6e.firebaseapp.com",
@@ -131,17 +187,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const appId = "sks-safety-elearning";
+        const appId = "sks-safety-v2";
 
-        let currentUserProfile = null;
+        let currentProfile = null;
+        let allUsersData = [];
 
-        // ตรวจสอบการ Login ตลอดเวลา
+        // --- AUTH & INIT ---
         onAuthStateChanged(auth, async (user) => {
             if (!user) await signInAnonymously(auth);
             lucide.createIcons();
         });
 
-        // จัดการการส่งฟอร์ม Login
+        // --- LOGIN HANDLER ---
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
             const email = document.getElementById('emailInput').value.toLowerCase();
@@ -151,110 +208,204 @@
             const userDoc = await getDoc(userRef);
 
             if (userDoc.exists()) {
-                loginSuccess(userDoc.data());
+                initSession(userDoc.data());
             } else if (email === 'owner@sks.com') {
-                const ownerData = { email, name: 'SKS Owner', role: 'owner' };
+                const ownerData = { email, name: 'SKS System Owner', role: 'owner' };
                 await setDoc(userRef, ownerData);
-                loginSuccess(ownerData);
+                initSession(ownerData);
             } else {
-                alert('ไม่พบอีเมลนี้ในระบบสิทธิ์การใช้งาน กรุณาติดต่อ Admin');
+                alert('อีเมลนี้ยังไม่ได้รับอนุญาตให้เข้าใช้งาน กรุณาติดต่อ Admin เพื่อขอสิทธิ์ Whitelist');
             }
         };
 
-        function loginSuccess(profile) {
-            currentUserProfile = profile;
+        function initSession(profile) {
+            currentProfile = profile;
             document.getElementById('view-login').classList.remove('active-flex');
             document.getElementById('view-main').classList.add('active');
-            document.getElementById('display-name').innerText = profile.name;
-            document.getElementById('display-role').innerText = profile.role;
+            document.getElementById('user-name-label').innerText = profile.name;
 
             if (profile.role === 'owner' || profile.role === 'admin') {
-                document.getElementById('admin-only-menu').classList.remove('hidden');
-                initAdminSync();
+                document.getElementById('admin-menu').classList.remove('hidden');
+                if (profile.role === 'owner') document.getElementById('owner-add-btn').classList.remove('hidden');
+                syncAdminData();
             }
+            
             showSection('dashboard');
-            initCourseSync();
+            syncCourses();
+            syncTrainingHistory();
         }
 
-        // ระบบเปลี่ยนหน้าจอ
-        window.showSection = (sectionName) => {
+        // --- NAVIGATION ---
+        window.showSection = (sectionId) => {
             document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(`section-${sectionName}`).classList.remove('hidden');
+            document.getElementById(`section-${sectionId}`).classList.remove('hidden');
             
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('bg-red-600', 'text-white'));
-            const activeBtn = sectionName === 'dashboard' ? 'btn-dash' : 'btn-admin';
-            document.getElementById(activeBtn).classList.add('bg-red-600', 'text-white');
+            const activeBtn = document.getElementById(`btn-${sectionId}`);
+            if (activeBtn) activeBtn.classList.add('bg-red-600', 'text-white');
             lucide.createIcons();
         };
 
-        // ดึงข้อมูลรายชื่อพนักงานแบบ Real-time
-        function initAdminSync() {
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
-                const tbody = document.getElementById('user-table-body');
-                tbody.innerHTML = '';
+        // --- DATA SYNC: COURSES (โจทย์ข้อ 1 & 3) ---
+        async function syncCourses() {
+            const courseRef = collection(db, 'artifacts', appId, 'public', 'data', 'courses');
+            
+            // สร้างข้อมูลเริ่มต้น 3 อย่างถ้ายังไม่มี (โจทย์ข้อ 1)
+            const initialCourses = [
+                { id: 'c1', title: 'การตรวจเช็คสภาพรถก่อนปฏิบัติงาน', desc: 'ขั้นตอนการตรวจสอบลมยาง เบรก และสัญญาณไฟ เพื่อความปลอดภัย 100% ก่อนออกตัว' },
+                { id: 'c2', title: 'มาตรการขับขี่ภายในโรงงาน (In-Plant)', desc: 'กฎการจำกัดความเร็วไม่เกิน 20 กม./ชม. และการใช้ทางร่วมทางแยกในพื้นที่คลังสินค้า' },
+                { id: 'c3', title: 'การขับขี่ปลอดภัยบนถนนสาธารณะ', desc: 'เทคนิคการขับขี่เชิงป้องกัน (Defensive Driving) และการรักษาระยะห่างเพื่อลดอุบัติเหตุ' }
+            ];
+
+            onSnapshot(courseRef, async (snap) => {
+                const grid = document.getElementById('courses-grid');
+                grid.innerHTML = '';
+                
+                if (snap.empty) {
+                    for(let c of initialCourses) { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'courses', c.id), c); }
+                    return;
+                }
+
                 snap.forEach(docSnap => {
-                    const u = docSnap.data();
-                    const row = `
-                        <tr class="border-t border-slate-50 hover:bg-slate-50/30 transition text-slate-900">
-                            <td class="p-6">
-                                <div class="font-bold">${u.name}</div>
-                                <div class="text-xs text-slate-400">${u.email}</div>
-                            </td>
-                            <td class="p-6">
-                                <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}">
-                                    ${u.role}
-                                </span>
-                            </td>
-                            <td class="p-6 text-right">
-                                <button onclick="deleteUser('${docSnap.id}')" class="text-slate-300 hover:text-red-500 transition-colors">
-                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                                </button>
-                            </td>
-                        </tr>
+                    const c = docSnap.data();
+                    grid.innerHTML += `
+                        <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 group hover:shadow-xl hover:shadow-slate-200 transition-all duration-300 relative">
+                            <h3 class="text-xl font-black mb-3 group-hover:text-red-600 transition-colors">${c.title}</h3>
+                            <p class="text-slate-500 text-sm leading-relaxed mb-8">${c.desc}</p>
+                            <div class="flex items-center justify-between">
+                                <button onclick="startTraining('${docSnap.id}')" class="bg-slate-900 text-white px-6 py-3 rounded-2xl text-sm font-bold hover:bg-red-600 transition-all">เริ่มเรียน</button>
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-300 italic">Core Safety</span>
+                            </div>
+                        </div>
                     `;
-                    tbody.innerHTML += row;
                 });
                 lucide.createIcons();
             });
         }
 
-        window.deleteUser = async (id) => {
-            if(confirm('ยืนยันการลบสิทธิ์ผู้ใช้นี้?')) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
-            }
+        // --- DATA SYNC: USERS & ANALYTICS (โจทย์ข้อ 2) ---
+        function syncAdminData() {
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
+                const tbody = document.getElementById('users-table-body');
+                tbody.innerHTML = '';
+                allUsersData = [];
+                
+                snap.forEach(docSnap => {
+                    const u = docSnap.data();
+                    allUsersData.push(u);
+                    tbody.innerHTML += `
+                        <tr class="border-t border-slate-50 hover:bg-slate-50/50 transition-colors text-slate-900">
+                            <td class="p-6 font-bold">
+                                ${u.name}<br><span class="text-xs text-slate-400 font-normal">${u.email}</span>
+                            </td>
+                            <td class="p-6 text-center">
+                                <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}">
+                                    ${u.role}
+                                </span>
+                            </td>
+                            <td class="p-6 text-right">
+                                <button onclick="deleteUser('${docSnap.id}')" class="text-slate-300 hover:text-red-600 transition-colors">
+                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                lucide.createIcons();
+            });
+        }
+
+        function syncTrainingHistory() {
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
+                const tbody = document.getElementById('analytics-table-body');
+                tbody.innerHTML = '';
+                
+                snap.forEach(docSnap => {
+                    const u = docSnap.data();
+                    const status = u.progress || "ยังไม่ได้เริ่ม";
+                    const score = u.lastScore || "-";
+                    
+                    tbody.innerHTML += `
+                        <tr class="border-t border-slate-50 text-slate-900">
+                            <td class="p-6 font-bold">${u.name}</td>
+                            <td class="p-6 text-slate-500 text-sm italic">ความปลอดภัยพื้นฐาน</td>
+                            <td class="p-6 text-center">
+                                <span class="text-xs font-bold ${u.lastScore ? 'text-green-600' : 'text-slate-400'}">
+                                    ${u.lastScore ? '✓ สำเร็จแล้ว' : '◌ กำลังดำเนินการ'}
+                                </span>
+                            </td>
+                            <td class="p-6 text-center font-mono font-bold">${score}/10</td>
+                            <td class="p-6 text-right">
+                                ${u.lastScore ? `<button class="text-red-600 hover:underline text-xs font-bold">PDF Certificate</button>` : '-'}
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        // --- CSV EXPORT (โจทย์ข้อ 2) ---
+        window.exportToCSV = () => {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Name,Email,Role,Status,Score\n";
+            
+            allUsersData.forEach(u => {
+                csvContent += `${u.name},${u.email},${u.role},${u.lastScore ? 'Completed' : 'Pending'},${u.lastScore || 0}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `SKS_Safety_Report_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
         };
 
-        // ฟังก์ชันเพิ่มรายชื่อพนักงาน
+        // --- ADD COURSE (โจทย์ข้อ 3) ---
+        window.openAddCourseModal = () => document.getElementById('course-modal').classList.remove('hidden');
+        window.closeCourseModal = () => document.getElementById('course-modal').classList.add('hidden');
+
+        document.getElementById('addCourseForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('courseTitle').value;
+            const desc = document.getElementById('courseDesc').value;
+            const id = 'course_' + Date.now();
+            
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'courses', id), { title, desc });
+            closeCourseModal();
+            e.target.reset();
+            alert('เพิ่มบทเรียนใหม่สำเร็จ พนักงานสามารถเข้าเรียนได้ทันที!');
+        };
+
+        // --- ADD USER ---
         document.getElementById('addUserForm').onsubmit = async (e) => {
             e.preventDefault();
-            const name = document.getElementById('newName').value;
-            const email = document.getElementById('newEmail').value.toLowerCase();
-            const role = document.getElementById('newRole').value;
+            const name = document.getElementById('newUserName').value;
+            const email = document.getElementById('newUserEmail').value.toLowerCase();
+            const role = document.getElementById('newUserRole').value;
             const docId = email.replace(/[@.]/g, '_');
             
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', docId), {
-                name, email, role, coursesStatus: {}
-            });
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', docId), { name, email, role });
             e.target.reset();
-            alert('เพิ่มรายชื่อสำเร็จ!');
+            alert('เพิ่มสิทธิ์พนักงานสำเร็จ!');
         };
 
-        function initCourseSync() {
-            const courses = [
-                { title: "ความปลอดภัยในการขับขี่", desc: "พื้นฐานการใช้งานยานพาหนะในคลัง" },
-                { title: "การสวมใส่อุปกรณ์ PPE", desc: "ความสำคัญและการเลือกใช้อุปกรณ์ป้องกัน" }
-            ];
-            const container = document.getElementById('course-list');
-            container.innerHTML = courses.map(c => `
-                <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group">
-                    <div class="relative z-10">
-                        <h3 class="text-xl font-bold mb-2">${c.title}</h3>
-                        <p class="text-slate-500 text-sm mb-8">${c.desc}</p>
-                        <button class="bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold hover:bg-red-600 transition-colors">เข้าเรียนเนื้อหา</button>
-                    </div>
-                </div>
-            `).join('');
-        }
+        window.deleteUser = async (id) => {
+            if(confirm('ต้องการลบพนักงานคนนี้ออกจากระบบ?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
+        };
+
+        // Mock function for starting training
+        window.startTraining = async (id) => {
+            if(confirm('ต้องการทำแบบทดสอบตอนนี้เลยหรือไม่? (จำลองการทำคะแนน 8/10)')) {
+                const docId = currentProfile.email.replace(/[@.]/g, '_');
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', docId), {
+                    ...currentProfile,
+                    lastScore: 8,
+                    progress: 'Completed'
+                });
+                alert('ยินดีด้วย! คุณทำแบบทดสอบผ่านแล้ว ข้อมูลถูกส่งไปหา Admin แล้ว');
+            }
+        };
 
     </script>
 </body>
