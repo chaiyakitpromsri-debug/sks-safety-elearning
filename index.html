@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SKS Safety LMS - High Performance</title>
+    <title>SKS Safety LMS - Enterprise Edition</title>
     
     <!-- CSS & Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,14 +18,15 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade { animation: fadeIn 0.3s ease-out; }
+        .card-hover:hover { transform: translateY(-5px); transition: all 0.3s ease; }
     </style>
 </head>
 <body class="bg-slate-50">
 
     <!-- Loading Overlay -->
     <div id="loading-screen" class="fixed inset-0 z-[999] bg-slate-900 flex items-center justify-center text-white flex-col gap-4">
-        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-red-600"></i>
-        <p class="animate-pulse">กำลังโหลดระบบ SKS Safety...</p>
+        <i class="fa-solid fa-shield-halved fa-bounce text-5xl text-red-600"></i>
+        <p class="animate-pulse tracking-widest font-light">CONNECTING TO DATABASE...</p>
     </div>
 
     <!-- Application Root -->
@@ -40,9 +41,9 @@
             <div class="mt-auto pt-4 border-t border-slate-800">
                 <div id="user-info" class="mb-4 hidden md:block px-2">
                     <p id="user-role-label" class="text-[10px] font-bold text-red-500 uppercase tracking-widest"></p>
-                    <p id="user-name-label" class="text-sm font-bold truncate"></p>
+                    <p id="user-name-label" class="text-sm font-bold truncate text-slate-300"></p>
                 </div>
-                <button onclick="logout()" class="w-full flex items-center gap-3 p-3 text-slate-400 hover:text-white transition group">
+                <button onclick="logout()" class="w-full flex items-center gap-3 p-3 text-slate-400 hover:text-white transition group hover:bg-red-500/10 rounded-xl">
                     <i class="fa-solid fa-right-from-bracket w-6 text-center group-hover:translate-x-1 transition-transform"></i>
                     <span class="hidden md:block">ออกจากระบบ</span>
                 </button>
@@ -53,143 +54,222 @@
         <main class="flex-1 flex flex-col overflow-hidden relative">
             <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 md:px-8">
                 <h2 id="page-title" class="font-bold text-lg text-slate-700">หน้าหลัก</h2>
-                <div class="text-[10px] text-slate-400 font-bold flex items-center gap-2">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span id="sync-status">LIVE SYNC ACTIVE</span>
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex flex-col items-end">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Server Status</span>
+                        <span id="sync-status" class="text-[10px] text-green-500 font-black italic">ONLINE</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border">
+                        <i class="fa-solid fa-user text-xs text-slate-400"></i>
+                    </div>
                 </div>
             </header>
             <section id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-slate-50"></section>
         </main>
     </div>
 
-    <!-- Auth Screens -->
+    <!-- Auth Screens (Updated UI for Password) -->
     <div id="auth-container" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4 hidden">
+        
+        <!-- Login Form -->
         <div id="login-view" class="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-fade">
-            <div class="text-center mb-8">
-                <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-inner">
-                    <i class="fa-solid fa-shield-halved text-4xl text-red-600"></i>
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-inner">
+                    <i class="fa-solid fa-shield-halved text-3xl text-red-600"></i>
                 </div>
-                <h1 class="text-3xl font-black italic text-slate-900 tracking-tighter">SKS SAFETY</h1>
-                <p class="text-slate-400 text-sm font-medium mt-1 uppercase tracking-widest">Enterprise LMS</p>
+                <h1 class="text-2xl font-black italic text-slate-900 tracking-tighter uppercase">SKS Login</h1>
+                <p class="text-slate-400 text-xs font-medium mt-1 uppercase tracking-widest">Secure Access Gateway</p>
             </div>
             <form id="login-form" class="space-y-4">
-                <input type="email" id="login-email" required placeholder="อีเมล (เช่น owner@sks.com)" 
-                    class="w-full p-4 bg-slate-100 rounded-2xl outline-none border-2 border-transparent focus:border-red-500 focus:bg-white transition-all font-medium" />
-                <button type="submit" class="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-xl">ลงชื่อเข้าใช้งาน</button>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-500 ml-2">E-MAIL</label>
+                    <input type="email" id="login-email" required placeholder="ชื่อผู้ใช้งาน (Email)" 
+                        class="w-full p-3 bg-slate-100 rounded-xl outline-none border-2 border-transparent focus:border-red-500 focus:bg-white transition-all font-medium" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-500 ml-2">PASSWORD</label>
+                    <input type="password" id="login-pass" required placeholder="รหัสผ่าน" 
+                        class="w-full p-3 bg-slate-100 rounded-xl outline-none border-2 border-transparent focus:border-red-500 focus:bg-white transition-all font-medium" />
+                </div>
+                <div id="login-error" class="text-red-500 text-xs font-bold text-center hidden"></div>
+                <button type="submit" class="w-full bg-slate-900 text-white p-4 rounded-xl font-bold hover:bg-red-600 transition-all shadow-xl active:scale-95 mt-2">เข้าสู่ระบบ</button>
             </form>
         </div>
+
+        <!-- Register Form (Updated Logic) -->
         <div id="register-view" class="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-fade hidden">
-            <h2 class="text-2xl font-bold mb-2">ลงทะเบียนพนักงาน</h2>
-            <form id="register-form" class="space-y-4">
-                <input type="text" id="reg-name" placeholder="ชื่อ-นามสกุล" required class="w-full p-4 bg-slate-100 rounded-2xl outline-none" />
-                <input type="text" id="reg-company" placeholder="บริษัท / แผนก" required class="w-full p-4 bg-slate-100 rounded-2xl outline-none" />
-                <button type="submit" class="w-full bg-red-600 text-white p-4 rounded-2xl font-bold shadow-lg mt-4">บันทึกข้อมูลและเข้าเรียน</button>
+            <h2 class="text-2xl font-black mb-1 italic text-slate-900">ลงทะเบียนครั้งแรก</h2>
+            <p class="text-slate-400 text-xs mb-6 uppercase tracking-widest font-bold">First Time Registration</p>
+            
+            <form id="register-form" class="space-y-3">
+                <div class="p-3 bg-blue-50 rounded-xl mb-4 border border-blue-100">
+                    <p class="text-xs text-blue-600 font-bold"><i class="fa-solid fa-info-circle mr-1"></i> Email: <span id="reg-email-display"></span></p>
+                </div>
+
+                <input type="text" id="reg-name" placeholder="ชื่อ-นามสกุล (พนักงานขับรถ)" required class="w-full p-3 bg-slate-100 rounded-xl outline-none border focus:border-red-500" />
+                <input type="text" id="reg-company" placeholder="บริษัทขนส่ง / แผนก" required class="w-full p-3 bg-slate-100 rounded-xl outline-none border focus:border-red-500" />
+                
+                <div class="pt-2">
+                    <label class="text-xs font-bold text-slate-500 ml-2">ตั้งรหัสผ่านสำหรับเข้าใช้งานครั้งต่อไป</label>
+                    <input type="password" id="reg-pass" placeholder="กำหนดรหัสผ่านของคุณ" required class="w-full p-3 bg-slate-100 rounded-xl outline-none border focus:border-red-500" />
+                </div>
+
+                <button type="submit" class="w-full bg-red-600 text-white p-4 rounded-xl font-bold shadow-lg mt-4 active:scale-95 transition-transform">บันทึกข้อมูลและเริ่มใช้งาน</button>
+                <button type="button" onclick="backToLogin()" class="w-full text-slate-400 text-xs font-bold py-2 hover:text-slate-600">ยกเลิก</button>
             </form>
         </div>
     </div>
 
-    <!-- Firebase SDK (ใช้แบบ Compatibility mode เพื่อให้ตรงกับโค้ดเดิมของคุณ) -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <script>
-        /**
-         * แผนผังข้อมูลสำหรับ Data Engineer:
-         * 1. firebaseConfig: ตั้งค่ากุญแจเชื่อมต่อ (Credentials)
-         * 2. init(): ฟังก์ชันเริ่มต้นระบบ (Ingestion Setup)
-         * 3. startDataListeners(): ระบบดึงข้อมูลแบบ Real-time (Streaming)
-         */
-
+        // --- 1. CONFIGURATION (VERCEL READY) ---
         const firebaseConfig = {
-            apiKey: "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
-            authDomain: "safety-e-learning-15c6e.firebaseapp.com",
-            projectId: "safety-e-learning-15c6e",
-            storageBucket: "safety-e-learning-15c6e.firebasestorage.app",
-            messagingSenderId: "382531903014",
-            appId: "1:382531903014:web:e256139500555a4145d0e7",
-            measurementId: "G-DDE8ZRSDEB"
+            apiKey: window?.process?.env?.FIREBASE_API_KEY || "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
+            authDomain: window?.process?.env?.FIREBASE_AUTH_DOMAIN || "safety-e-learning-15c6e.firebaseapp.com",
+            projectId: window?.process?.env?.FIREBASE_PROJECT_ID || "safety-e-learning-15c6e",
+            storageBucket: window?.process?.env?.FIREBASE_STORAGE_BUCKET || "safety-e-learning-15c6e.firebasestorage.app",
+            messagingSenderId: window?.process?.env?.FIREBASE_MESSAGING_SENDER_ID || "382531903014",
+            appId: window?.process?.env?.FIREBASE_APP_ID || "1:382531903014:web:e256139500555a4145d0e7",
+            measurementId: window?.process?.env?.FIREBASE_MEASUREMENT_ID || "G-DDE8ZRSDEB"
         };
 
         const APP_ID = 'sks-safety-v11';
-        const OWNER_EMAIL = "owner@sks.com";
+        
+        // --- 1.1 OWNER CREDENTIALS (HARDCODED) ---
+        const OWNER_CREDENTIALS = {
+            email: "owner@sks.com",
+            password: "sks10"
+        };
 
-        // Initialize
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let currentUser = null;
+        // State Management
         let currentProfile = null;
         let courses = [];
         let allUsers = [];
+        let whitelist = []; // Store admin emails
         let currentView = 'dashboard';
-        let unsubCourses = null;
-        let unsubUsers = null;
+        
+        // Listeners
+        let unsubCourses, unsubUsers, unsubWhitelist;
 
+        // Path Helpers
+        const getPublicCollection = (col) => db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(col);
+        const getWhitelistDoc = () => db.collection('artifacts').doc(APP_ID).collection('public').doc('settings');
+
+        // --- 2. INITIALIZATION ---
         async function init() {
             try {
-                // ขั้นตอน Authentication: ต้องรอก่อนจะดึงข้อมูล
+                // Anonymous Auth for Firestore Connection
                 await auth.signInAnonymously();
-                
-                auth.onAuthStateChanged(user => {
-                    if (user) {
-                        currentUser = user;
-                        showLogin();
-                    }
-                    hideLoading();
-                });
+                hideLoading();
+                showLogin();
             } catch (error) {
-                console.error("Initialization Failed:", error);
-                document.getElementById('sync-status').innerText = "CONNECTION ERROR";
+                console.error("Connection Error:", error);
+                document.getElementById('sync-status').innerText = "OFFLINE";
+                document.getElementById('sync-status').className = "text-[10px] text-red-500 font-black italic";
             }
         }
 
         function showLogin() {
             document.getElementById('auth-container').classList.remove('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('register-view').classList.add('hidden');
             document.getElementById('app').classList.add('hidden');
+        }
+
+        function backToLogin() {
+            document.getElementById('register-view').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
         }
 
         function hideLoading() {
             document.getElementById('loading-screen').classList.add('hidden');
         }
 
-        // PATH HELPER: จัดโครงสร้างข้อมูลใน Firestore ให้เป็นระเบียบ (Rule 1)
-        const getPublicCollection = (col) => db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(col);
-
+        // --- 3. AUTHENTICATION LOGIC (UPDATED FOR PASSWORD) ---
+        // บรรทัดที่ 208-255: Logic การ Login แยกตาม Role
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const pass = document.getElementById('login-pass').value.trim();
+            const errorMsg = document.getElementById('login-error');
             const emailKey = email.replace(/[@.]/g, '_');
 
-            if (email === OWNER_EMAIL) {
-                const data = { email, name: 'System Owner', role: 'owner', company: 'SKS CENTRAL', progress: 0 };
-                await getPublicCollection('users').doc(emailKey).set(data, {merge: true});
-                loginSuccess(data);
+            errorMsg.classList.add('hidden');
+
+            // 3.1 Owner Login Check (Hardcoded)
+            if (email === OWNER_CREDENTIALS.email) {
+                if (pass === OWNER_CREDENTIALS.password) {
+                    const data = { email, name: 'SKS Owner', role: 'owner', company: 'HEADQUARTERS', progress: 100 };
+                    // Save owner profile to ensure DB consistency
+                    await getPublicCollection('users').doc(emailKey).set(data, {merge: true});
+                    loginSuccess(data);
+                } else {
+                    errorMsg.innerText = "รหัสผ่านไม่ถูกต้อง (Wrong Password)";
+                    errorMsg.classList.remove('hidden');
+                }
                 return;
             }
 
+            // 3.2 User/Admin Login Check (Firestore)
             const doc = await getPublicCollection('users').doc(emailKey).get();
+            
             if (doc.exists) {
-                loginSuccess(doc.data());
+                const userData = doc.data();
+                // Check stored password (Simple implementation)
+                if (userData.password === pass) {
+                    loginSuccess(userData);
+                } else {
+                    errorMsg.innerText = "รหัสผ่านไม่ถูกต้อง";
+                    errorMsg.classList.remove('hidden');
+                }
             } else {
+                // 3.3 New User -> Go to Register
+                // Pass email and password to register form state
+                document.getElementById('reg-email-display').innerText = email;
+                document.getElementById('reg-pass').value = pass; // Pre-fill password
                 document.getElementById('login-view').classList.add('hidden');
                 document.getElementById('register-view').classList.remove('hidden');
             }
         };
 
+        // --- 4. REGISTRATION LOGIC ---
+        // บรรทัดที่ 258-290: ลงทะเบียน + เช็ค Whitelist Admin
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const pass = document.getElementById('reg-pass').value.trim();
             const emailKey = email.replace(/[@.]/g, '_');
+            
+            // Check Whitelist for Admin Role
+            const settingsDoc = await getWhitelistDoc().get();
+            let assignedRole = 'trainee'; // Default
+            
+            if (settingsDoc.exists) {
+                const adminList = settingsDoc.data().adminEmails || [];
+                if (adminList.includes(email)) {
+                    assignedRole = 'admin';
+                }
+            }
+
             const data = {
                 email,
+                password: pass, // Storing password for this simplified system
                 name: document.getElementById('reg-name').value,
                 company: document.getElementById('reg-company').value,
-                role: 'trainee',
+                role: assignedRole, 
                 progress: 0,
-                joinedAt: new Date().toISOString()
+                joinedAt: new Date().toISOString(),
+                certificates: []
             };
+
             await getPublicCollection('users').doc(emailKey).set(data);
             loginSuccess(data);
         };
@@ -203,26 +283,36 @@
             renderView('dashboard');
         }
 
+        // --- 5. DATA LISTENERS & REALTIME SYNC ---
         function startDataListeners() {
             if (unsubCourses) unsubCourses();
             if (unsubUsers) unsubUsers();
+            if (unsubWhitelist) unsubWhitelist();
 
-            // Stream Courses: ฟังความเปลี่ยนแปลงของบทเรียน
+            // Fetch Courses
             unsubCourses = getPublicCollection('courses').onSnapshot(s => {
                 courses = s.docs.map(d => ({id: d.id, ...d.data()}));
                 if(currentView === 'dashboard') renderDashboard();
-            }, err => console.error("Course Stream Error", err));
+            });
 
-            // Stream Users: สำหรับ Admin/Owner
+            // Owner: Fetch Whitelist
+            if (currentProfile.role === 'owner') {
+                unsubWhitelist = getWhitelistDoc().onSnapshot(s => {
+                    whitelist = s.exists ? (s.data().adminEmails || []) : [];
+                    if(currentView === 'users') renderUsers();
+                });
+            }
+
+            // Admin/Owner: Fetch All Users
             if (['admin', 'owner'].includes(currentProfile.role)) {
                 unsubUsers = getPublicCollection('users').onSnapshot(s => {
                     allUsers = s.docs.map(d => ({id: d.id, ...d.data()}));
                     if(currentView === 'users') renderUsers();
-                }, err => console.error("User Stream Error", err));
+                });
             }
         }
 
-        // UI Rendering Logic... (เหมือนเดิม)
+        // --- 6. UI: SIDEBAR ---
         function updateSidebar() {
             const nav = document.getElementById('main-nav');
             const role = currentProfile.role;
@@ -230,23 +320,27 @@
             document.getElementById('user-name-label').innerText = currentProfile.name;
 
             let html = `<button onclick="renderView('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-3 p-3 rounded-2xl transition hover:bg-slate-800">
-                <i class="fa-solid fa-house w-6"></i> <span class="hidden md:block">หน้าหลัก</span>
+                <i class="fa-solid fa-layer-group w-6"></i> <span class="hidden md:block">หน้าแรก</span>
             </button>`;
 
             if (role === 'owner') {
                 html += `<button onclick="renderView('builder')" id="nav-builder" class="nav-btn w-full flex items-center gap-3 p-3 rounded-2xl transition hover:bg-slate-800">
-                    <i class="fa-solid fa-plus w-6"></i> <span class="hidden md:block">สร้างบทเรียน</span>
+                    <i class="fa-solid fa-plus-circle w-6"></i> <span class="hidden md:block">สร้างหลักสูตร</span>
+                </button>`;
+                html += `<button onclick="renderView('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center gap-3 p-3 rounded-2xl transition hover:bg-slate-800">
+                    <i class="fa-solid fa-chart-line w-6"></i> <span class="hidden md:block">ข้อมูลวิเคราะห์</span>
                 </button>`;
             }
 
             if (['owner', 'admin'].includes(role)) {
                 html += `<button onclick="renderView('users')" id="nav-users" class="nav-btn w-full flex items-center gap-3 p-3 rounded-2xl transition hover:bg-slate-800">
-                    <i class="fa-solid fa-users-gear w-6"></i> <span class="hidden md:block">จัดการพนักงาน</span>
+                    <i class="fa-solid fa-user-shield w-6"></i> <span class="hidden md:block">จัดการบุคลากร</span>
                 </button>`;
             }
             nav.innerHTML = html;
         }
 
+        // --- 7. UI ROUTER ---
         function renderView(viewName) {
             currentView = viewName;
             const container = document.getElementById('content-area');
@@ -255,112 +349,270 @@
             const activeBtn = document.getElementById(`nav-${viewName}`);
             if(activeBtn) activeBtn.classList.add('active-link');
 
-            container.innerHTML = `<div class="animate-pulse space-y-4"><div class="h-8 bg-slate-200 rounded w-1/4"></div><div class="h-64 bg-slate-200 rounded-3xl"></div></div>`;
+            container.innerHTML = `<div class="animate-pulse flex items-center justify-center h-64"><i class="fa-solid fa-spinner fa-spin text-slate-200 text-3xl"></i></div>`;
 
             setTimeout(() => {
-                if(viewName === 'dashboard') { title.innerText = 'แดชบอร์ด'; renderDashboard(); }
-                else if(viewName === 'builder') { title.innerText = 'สร้างบทเรียน'; renderBuilder(); }
-                else if(viewName === 'users') { title.innerText = 'จัดการพนักงาน'; renderUsers(); }
+                if(viewName === 'dashboard') { title.innerText = 'Learning Dashboard'; renderDashboard(); }
+                else if(viewName === 'builder') { title.innerText = 'Course Builder'; renderBuilder(); }
+                else if(viewName === 'users') { title.innerText = 'Personnel Database'; renderUsers(); }
+                else if(viewName === 'analytics') { title.innerText = 'Data Insights'; renderAnalytics(); }
             }, 50);
         }
 
+        // --- 8. DASHBOARD VIEW (TRAINEE & ALL) ---
         function renderDashboard() {
             const container = document.getElementById('content-area');
             const cards = courses.map(c => `
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all">
-                    <div class="h-40 bg-slate-900 rounded-2xl mb-4 flex items-center justify-center text-white italic font-bold">
-                        <i class="fa-solid fa-shield-halved text-3xl opacity-20"></i>
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm card-hover relative group">
+                    <div class="h-32 bg-slate-900 rounded-2xl mb-4 flex items-center justify-center text-red-500 overflow-hidden relative">
+                         <i class="fa-solid fa-play-circle text-4xl relative z-10 group-hover:scale-110 transition-transform"></i>
+                         <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                     </div>
-                    <h3 class="font-bold text-lg mb-1">${c.title}</h3>
-                    <p class="text-slate-500 text-xs mb-6 line-clamp-2">${c.desc || '-'}</p>
-                    <button onclick="startLearning('${c.id}')" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors">เข้าเรียน</button>
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-slate-800 line-clamp-1">${c.title}</h3>
+                        ${currentProfile.role === 'owner' ? `<button onclick="deleteCourse('${c.id}')" class="text-slate-300 hover:text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                    </div>
+                    <p class="text-slate-500 text-[10px] mb-4 line-clamp-2 uppercase font-bold tracking-widest">${c.desc || 'Safety Compliance Module'}</p>
+                    <button onclick="alert('Start Learning: ${c.title}')" class="w-full bg-slate-50 text-slate-900 py-3 rounded-xl font-bold hover:bg-red-600 hover:text-white transition-all text-xs italic border border-slate-200 hover:border-red-600">ENTER CLASSROOM</button>
                 </div>
             `).join('');
 
             container.innerHTML = `
                 <div class="max-w-6xl mx-auto animate-fade">
-                    <div class="flex justify-between items-end mb-8">
-                        <div>
-                            <h1 class="text-3xl font-black text-slate-900">สวัสดี, ${currentProfile.name}</h1>
-                            <p class="text-slate-400 font-medium">บริษัท: ${currentProfile.company}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-white p-6 rounded-3xl border border-red-100">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">ความคืบหน้ารวม</p>
+                            <h2 class="text-3xl font-black text-red-600">${currentProfile.progress || 0}%</h2>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-100">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">ใบประกาศที่ได้รับ</p>
+                            <h2 class="text-3xl font-black text-slate-800">${(currentProfile.certificates || []).length}</h2>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-100 md:col-span-2 flex items-center gap-4">
+                            <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-building text-slate-400"></i></div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">สังกัดบริษัท / แผนก</p>
+                                <h3 class="text-lg font-bold text-slate-800">${currentProfile.company}</h3>
+                            </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">${cards || '<p class="text-slate-400">ยังไม่มีบทเรียนในขณะนี้</p>'}</div>
+                    <h2 class="font-black text-xl mb-6 italic underline decoration-red-500 decoration-4 underline-offset-8 uppercase">Available Modules</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">${cards || '<p class="text-slate-300 italic p-4">No courses available.</p>'}</div>
                 </div>`;
         }
 
+        // --- 9. OWNER: COURSE BUILDER ---
+        // บรรทัดที่ 460+: เพิ่ม Logic การสร้างคำถาม
+        let tempQuestions = [];
+        
         function renderBuilder() {
+            tempQuestions = []; // Reset
             document.getElementById('content-area').innerHTML = `
-                <div class="max-w-2xl mx-auto animate-fade bg-white p-8 rounded-[2.5rem] border shadow-sm">
-                    <h2 class="text-xl font-bold mb-6 italic underline decoration-red-500 underline-offset-8">เพิ่มหลักสูตรใหม่</h2>
-                    <div class="space-y-4">
-                        <input id="c-title" placeholder="ชื่อวิชา" class="w-full p-4 bg-slate-50 rounded-2xl border" />
-                        <textarea id="c-desc" placeholder="คำอธิบายสั้นๆ" class="w-full p-4 bg-slate-50 rounded-2xl border h-24"></textarea>
-                        <input id="c-video" placeholder="Link วิดีโอ (YouTube/MP4)" class="w-full p-4 bg-slate-50 rounded-2xl border" />
-                        <button onclick="handleSaveCourse()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all">ยืนยันการเพิ่มบทเรียน</button>
+                <div class="max-w-4xl mx-auto animate-fade">
+                    <div class="bg-white p-8 md:p-10 rounded-[3rem] shadow-2xl border-4 border-white relative">
+                        <h2 class="text-3xl font-black mb-8 italic text-slate-800">COURSE BUILDER</h2>
+                        
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">Module Name</label>
+                                    <input id="c-title" placeholder="ชื่อบทเรียน" class="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-red-500 transition-all outline-none font-bold" />
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">Video Source</label>
+                                    <input id="c-video" placeholder="YouTube Link" class="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-red-500 transition-all outline-none" />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">Description</label>
+                                <textarea id="c-desc" placeholder="รายละเอียด..." class="w-full p-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-red-500 transition-all outline-none h-24"></textarea>
+                            </div>
+
+                            <!-- Quiz Builder UI -->
+                            <div class="p-6 bg-red-50 rounded-3xl border-2 border-dashed border-red-200">
+                                <h4 class="font-bold text-red-600 text-sm mb-4 italic"><i class="fa-solid fa-list-check mr-2"></i>QUIZ QUESTIONS</h4>
+                                <div id="questions-list" class="space-y-3 mb-4"></div>
+                                
+                                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                                    <input id="q-text" placeholder="พิมพ์คำถามที่นี่..." class="w-full mb-3 font-bold text-sm outline-none border-b border-slate-100 pb-2" />
+                                    <div class="grid grid-cols-2 gap-2 mb-2">
+                                        <input id="q-opt1" placeholder="ตัวเลือก A (คำตอบที่ถูก)" class="text-xs p-2 bg-green-50 rounded border border-green-100 text-green-700" />
+                                        <input id="q-opt2" placeholder="ตัวเลือก B" class="text-xs p-2 bg-slate-50 rounded" />
+                                        <input id="q-opt3" placeholder="ตัวเลือก C" class="text-xs p-2 bg-slate-50 rounded" />
+                                        <input id="q-opt4" placeholder="ตัวเลือก D" class="text-xs p-2 bg-slate-50 rounded" />
+                                    </div>
+                                    <button onclick="addQuestion()" class="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-700">Add Question to List</button>
+                                </div>
+                            </div>
+
+                            <button onclick="handleSaveCourse()" class="w-full bg-red-600 text-white py-5 rounded-[2rem] font-black hover:bg-red-700 transition-all shadow-xl uppercase tracking-widest italic">DEPLOY COURSE</button>
+                        </div>
                     </div>
                 </div>`;
+        }
+
+        function addQuestion() {
+            const text = document.getElementById('q-text').value;
+            const opt1 = document.getElementById('q-opt1').value;
+            if(!text || !opt1) return alert('กรุณาใส่คำถามและตัวเลือกที่ถูกต้อง (ตัวเลือก A)');
+            
+            tempQuestions.push({
+                question: text,
+                options: [opt1, document.getElementById('q-opt2').value, document.getElementById('q-opt3').value, document.getElementById('q-opt4').value],
+                correctIndex: 0 // Simplification: A is always correct in data logic, shuffle in UI
+            });
+
+            // Render list
+            document.getElementById('questions-list').innerHTML = tempQuestions.map((q, i) => `
+                <div class="flex justify-between items-center text-xs bg-white p-3 rounded-xl">
+                    <span class="font-bold text-slate-700">${i+1}. ${q.question}</span>
+                    <button onclick="tempQuestions.splice(${i},1); addQuestion();" class="text-red-500"><i class="fa-solid fa-times"></i></button>
+                </div>
+            `).join('');
+            
+            // Clear inputs
+            document.getElementById('q-text').value = '';
+            document.querySelectorAll('[id^="q-opt"]').forEach(el => el.value = '');
         }
 
         async function handleSaveCourse() {
             const title = document.getElementById('c-title').value;
             if(!title) return;
+            
             await getPublicCollection('courses').add({
-                title, desc: document.getElementById('c-desc').value,
+                title, 
+                desc: document.getElementById('c-desc').value,
                 videoUrl: document.getElementById('c-video').value,
+                questions: tempQuestions,
                 createdAt: new Date().toISOString()
             });
             renderView('dashboard');
         }
 
+        async function deleteCourse(id) {
+            if(confirm('ยืนยันการลบบทเรียนนี้? (การลบจะไม่สามารถกู้คืนได้)')) {
+                await getPublicCollection('courses').doc(id).delete();
+            }
+        }
+
+        // --- 10. ADMIN/OWNER: USER MANAGEMENT & WHITELIST ---
+        // บรรทัดที่ 550+: เพิ่ม UI สำหรับ Owner Whitelist Admin และ Filter ตามขนส่ง
         function renderUsers() {
+            // Filter Logic (Admin Dashboard)
+            const uniqueCompanies = [...new Set(allUsers.map(u => u.company))].filter(Boolean);
+            
+            // Whitelist UI (Only Owner)
+            let whitelistUI = '';
+            if (currentProfile.role === 'owner') {
+                whitelistUI = `
+                    <div class="bg-slate-900 text-white p-6 rounded-3xl mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h3 class="font-black italic text-lg text-yellow-400">ADMIN WHITELIST</h3>
+                            <p class="text-xs text-slate-400">Manage who can register as Admin</p>
+                        </div>
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <input id="new-admin-email" placeholder="email@company.com" class="text-slate-900 px-4 py-2 rounded-xl text-sm font-bold w-full" />
+                            <button onclick="addAdminWhitelist()" class="bg-yellow-400 text-slate-900 px-4 py-2 rounded-xl font-bold hover:bg-yellow-300 text-xs">ADD</button>
+                        </div>
+                        <div class="flex gap-1 flex-wrap justify-end max-w-md">
+                            ${whitelist.map(e => `<span class="px-2 py-1 bg-slate-800 rounded text-[10px] text-slate-300 border border-slate-700">${e} <button onclick="removeAdminWhitelist('${e}')" class="ml-1 text-red-500">x</button></span>`).join('')}
+                        </div>
+                    </div>`;
+            }
+
+            // Table UI
             const rows = allUsers.map(u => `
-                <tr class="border-b border-slate-50">
-                    <td class="p-4 font-bold text-sm">${u.name}</td>
-                    <td class="p-4 text-xs text-slate-500">${u.company}</td>
-                    <td class="p-4 text-xs font-bold text-red-600">${u.progress || 0}%</td>
-                    <td class="p-4 uppercase text-[10px] font-black text-slate-400">${u.role}</td>
+                <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                     <td class="p-4">
-                        ${currentProfile.role === 'owner' && u.email !== OWNER_EMAIL ? 
-                            `<button onclick="toggleAdmin('${u.id}', '${u.role}')" class="text-[10px] bg-slate-100 px-2 py-1 rounded hover:bg-slate-900 hover:text-white transition-all">PROMOTE/DEMOTE</button>` 
-                        : '-'}
+                        <div class="font-black text-sm text-slate-800">${u.name}</div>
+                        <div class="text-[10px] text-slate-400 font-medium">${u.email}</div>
+                    </td>
+                    <td class="p-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">${u.company}</td>
+                    <td class="p-4">
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-red-500 h-full" style="width: ${u.progress || 0}%"></div>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="px-3 py-1 ${u.role === 'admin' ? 'bg-yellow-100 text-yellow-700' : (u.role === 'owner' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500')} text-[9px] font-black rounded-full uppercase italic">${u.role}</span>
                     </td>
                 </tr>
             `).join('');
+
             document.getElementById('content-area').innerHTML = `
-                <div class="max-w-5xl mx-auto animate-fade bg-white rounded-[2rem] border overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            <tr><th class="p-4">NAME</th><th class="p-4">COMPANY</th><th class="p-4">PROGRESS</th><th class="p-4">ROLE</th><th class="p-4">ACTION</th></tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                    </table>
+                <div class="max-w-6xl mx-auto animate-fade">
+                    ${whitelistUI}
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-black italic">DATABASE</h2>
+                            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Total Users: ${allUsers.length}</p>
+                        </div>
+                        <button onclick="exportToCSV()" class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-green-700 shadow-lg transition-all">
+                            <i class="fa-solid fa-file-csv"></i> EXPORT CSV
+                        </button>
+                    </div>
+                    
+                    <!-- Filters -->
+                    <div class="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scrollbar">
+                        <button onclick="filterUsers('all')" class="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold whitespace-nowrap">ALL</button>
+                        ${uniqueCompanies.map(c => `<button onclick="alert('Filter logic here for ${c}')" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold whitespace-nowrap hover:bg-slate-50">${c}</button>`).join('')}
+                    </div>
+
+                    <div class="bg-white rounded-[2rem] border-4 border-white shadow-xl overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-900 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <tr><th class="p-5">Information</th><th class="p-5">Department</th><th class="p-5">Progress</th><th class="p-5">Role</th></tr>
+                            </thead>
+                            <tbody>${rows || '<tr><td colspan="4" class="p-10 text-center text-slate-300">No data available.</td></tr>'}</tbody>
+                        </table>
+                    </div>
                 </div>`;
         }
 
-        async function toggleAdmin(id, role) {
-            const user = allUsers.find(u => u.id === id);
-            const key = user.email.replace(/[@.]/g, '_');
-            await getPublicCollection('users').doc(key).update({ role: role === 'admin' ? 'trainee' : 'admin' });
+        // Whitelist Logic
+        async function addAdminWhitelist() {
+            const email = document.getElementById('new-admin-email').value.trim().toLowerCase();
+            if(!email) return;
+            const docRef = getWhitelistDoc();
+            const doc = await docRef.get();
+            let currentList = doc.exists ? (doc.data().adminEmails || []) : [];
+            if(!currentList.includes(email)) {
+                currentList.push(email);
+                await docRef.set({ adminEmails: currentList }, { merge: true });
+            }
+            document.getElementById('new-admin-email').value = '';
         }
 
-        function startLearning(id) {
-            const c = courses.find(course => course.id === id);
+        async function removeAdminWhitelist(email) {
+            const docRef = getWhitelistDoc();
+            const doc = await docRef.get();
+            if(doc.exists) {
+                let currentList = doc.data().adminEmails || [];
+                currentList = currentList.filter(e => e !== email);
+                await docRef.set({ adminEmails: currentList }, { merge: true });
+            }
+        }
+
+        function exportToCSV() {
+            const headers = ['Name', 'Email', 'Company', 'Role', 'Progress'];
+            const rows = allUsers.map(u => [u.name, u.email, u.company, u.role, u.progress || 0]);
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `SKS_Database_Report.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function renderAnalytics() {
             document.getElementById('content-area').innerHTML = `
-                <div class="max-w-4xl mx-auto animate-fade">
-                    <button onclick="renderView('dashboard')" class="mb-4 text-slate-400 font-bold">← ย้อนกลับ</button>
-                    <div class="aspect-video bg-black rounded-3xl mb-6 flex items-center justify-center text-white p-8 text-center border-4 border-white shadow-lg">
-                        <div>
-                            <i class="fa-solid fa-circle-play text-6xl text-red-600 mb-4"></i>
-                            <h2 class="text-2xl font-bold">${c.title}</h2>
-                            <p class="text-slate-400 mt-2">${c.videoUrl || 'ไม่มีลิงก์วิดีโอ'}</p>
-                        </div>
-                    </div>
-                    <div class="bg-white p-8 rounded-3xl border text-center shadow-sm">
-                        <h3 class="font-bold text-xl mb-2">บทเรียนสมบูรณ์แล้ว?</h3>
-                        <p class="text-slate-400 text-sm mb-6">คลิกปุ่มด้านล่างเพื่อเริ่มทำแบบทดสอบและบันทึกผลการเรียน</p>
-                        <button onclick="alert('ระบบสอบกำลังเปิดให้ใช้งานเร็วๆ นี้')" class="bg-red-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-red-100">เริ่มทำข้อสอบ</button>
-                    </div>
+                <div class="max-w-6xl mx-auto animate-fade text-center py-20">
+                    <i class="fa-solid fa-chart-pie text-6xl text-slate-200 mb-6"></i>
+                    <h2 class="text-3xl font-black italic text-slate-800">ANALYTICS DASHBOARD</h2>
+                    <p class="text-slate-400 mt-2 font-medium">ส่วนวิเคราะห์ข้อมูลสำหรับ Data Engineer (อยู่ระหว่างการพัฒนา BI Tools)</p>
                 </div>`;
         }
 
