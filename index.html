@@ -1,0 +1,310 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, doc, setDoc, getDoc, getDocs, collection, 
+  onSnapshot, query, updateDoc, deleteDoc 
+} from 'firebase/firestore';
+import { 
+  getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken 
+} from 'firebase/auth';
+import { 
+  Shield, Layout, Users, Edit3, LogOut, BookOpen, 
+  CheckCircle, AlertCircle, Trash2, Plus, ArrowLeft, Printer
+} from 'lucide-react';
+
+// --- Firebase Configuration (แก้ไขให้ถูกต้องแล้ว) ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
+  authDomain: "safety-e-learning-15c6e.firebaseapp.com",
+  projectId: "safety-e-learning-15c6e",
+  storageBucket: "safety-e-learning-15c6e.firebasestorage.app",
+  messagingSenderId: "382531903014",
+  appId: "1:382531903014:web:e256139500555a4145d0e7",
+  measurementId: "G-DDE8ZRSDEB"
+};
+
+// Initialize Firebase (ประกาศเพียงครั้งเดียว)
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'sks-safety-elearning';
+
+const INITIAL_COURSES = [
+  { id: "1", title: "ความปลอดภัยในการขับขี่และขนส่ง", description: "แนวทางการขับขี่เชิงป้องกันและการเช็คสภาพรถก่อนปฏิบัติงาน", videoId: "7S_uP0X0V9s", passScore: 80, questions: [{ q: "ต้องเช็คเบรคก่อนขับหรือไม่?", options: ["เช็ค", "ไม่เช็ค"], a: 0 }] },
+  { id: "2", title: "อุปกรณ์ PPE ในคลังสินค้า", description: "การเลือกใช้และบำรุงรักษาอุปกรณ์ป้องกันอันตรายส่วนบุคคล", videoId: "vY9uXh7_v80", passScore: 100, questions: [{ q: "ควรใส่รองเท้าเซฟตี้ไหม?", options: ["ใส่", "ไม่ใส่"], a: 0 }] }
+];
+
+export default function App() {
+  const [view, setView] = useState('login');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [usersList, setUsersList] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [activeCourse, setActiveCourse] = useState(null);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [userAnswers, setUserAnswers] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Authentication Lifecycle
+  useEffect(() => {
+    const initAuth = async () => {
+      setLoading(true);
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Auth Error", error);
+      }
+    };
+    initAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      if (!user) setView('login');
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch Data
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const coursesRef = collection(db, 'artifacts', appId, 'public', 'data', 'courses');
+    const unsubCourses = onSnapshot(coursesRef, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (data.length === 0) {
+        INITIAL_COURSES.forEach(c => setDoc(doc(coursesRef, c.id), c));
+      }
+      setCourses(data);
+    }, (err) => console.error("Courses Fetch Error", err));
+
+    const allUsersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+    const unsubUsers = onSnapshot(allUsersRef, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUsersList(data);
+    });
+
+    return () => {
+      unsubCourses();
+      unsubUsers();
+    };
+  }, [currentUser]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const email = e.target.email.value.toLowerCase();
+    const docId = email.replace(/[@.]/g, '_');
+    const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', docId);
+    const userDoc = await getDoc(userRef);
+
+    if (userDoc.exists()) {
+      setProfile(userDoc.data());
+      setView('dashboard');
+    } else {
+      if (email === 'owner@sks.com') {
+        const ownerData = { email, name: 'System Owner', role: 'owner', coursesStatus: {} };
+        await setDoc(userRef, ownerData);
+        setProfile(ownerData);
+        setView('dashboard');
+      } else {
+        alert('ไม่พบอีเมลนี้ในระบบสิทธิ์การใช้งาน กรุณาติดต่อ Admin');
+      }
+    }
+  };
+
+  const addUser = async (e) => {
+    e.preventDefault();
+    const newEmail = e.target.newEmail.value.toLowerCase();
+    const newName = e.target.newName.value;
+    const newRole = e.target.newRole.value;
+    const docId = newEmail.replace(/[@.]/g, '_');
+
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', docId), {
+      email: newEmail,
+      name: newName,
+      role: newRole,
+      coursesStatus: {}
+    });
+    e.target.reset();
+  };
+
+  const submitQuiz = async () => {
+    let score = 0;
+    activeCourse.questions.forEach((q, i) => { if (userAnswers[i] === q.a) score++; });
+    const percent = (score / activeCourse.questions.length) * 100;
+    const passed = percent >= activeCourse.passScore;
+
+    const updatedProfile = { ...profile };
+    if (!updatedProfile.coursesStatus) updatedProfile.coursesStatus = {};
+    updatedProfile.coursesStatus[activeCourse.id] = {
+      status: passed ? 'Passed' : 'Failed',
+      score: percent,
+      date: new Date().toLocaleDateString('th-TH')
+    };
+
+    const docId = profile.email.replace(/[@.]/g, '_');
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', docId), {
+      coursesStatus: updatedProfile.coursesStatus
+    });
+
+    setProfile(updatedProfile);
+    setView('result');
+  };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">กำลังโหลดระบบ...</div>;
+
+  if (view === 'login') return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6">
+      <div className="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md text-center">
+        <Shield className="w-16 h-16 text-red-600 mx-auto mb-4" />
+        <h1 className="text-2xl font-bold mb-2">SKS Safety E-Learning</h1>
+        <p className="text-slate-500 text-sm mb-8">ระบบบันทึกข้อมูลแบบเรียลไทม์</p>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input name="email" type="email" required className="w-full p-4 border rounded-2xl outline-none focus:ring-2 focus:ring-red-600" placeholder="อีเมลของคุณ" />
+          <button className="w-full bg-red-600 text-white py-4 rounded-2xl font-bold hover:bg-red-700 transition">เข้าสู่ระบบ</button>
+        </form>
+        <p className="mt-4 text-xs text-slate-400">สำหรับ Owner ใช้: owner@sks.com</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      <aside className="w-64 bg-slate-900 text-white p-6 hidden md:block">
+        <div className="flex items-center gap-3 mb-10">
+          <Shield className="text-red-500" />
+          <h1 className="font-bold text-xl">SKS Safety</h1>
+        </div>
+        <nav className="space-y-2">
+          <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${view === 'dashboard' ? 'bg-red-600' : 'hover:bg-slate-800'}`}>
+            <Layout size={18} /> แดชบอร์ด
+          </button>
+          {(profile?.role === 'owner' || profile?.role === 'admin') && (
+            <button onClick={() => setView('user-management')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${view === 'user-management' ? 'bg-red-600' : 'hover:bg-slate-800'}`}>
+              <Users size={18} /> จัดการผู้ใช้
+            </button>
+          )}
+          {profile?.role === 'owner' && (
+            <button onClick={() => setView('content-management')} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${view === 'content-management' ? 'bg-red-600' : 'hover:bg-slate-800'}`}>
+              <Edit3 size={18} /> จัดการเนื้อหา
+            </button>
+          )}
+          <hr className="border-slate-800 my-6" />
+          <button onClick={() => { auth.signOut(); setView('login'); }} className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:text-white transition">
+            <LogOut size={18} /> ออกจากระบบ
+          </button>
+        </nav>
+      </aside>
+
+      <main className="flex-1 p-6 md:p-10">
+        {view === 'dashboard' && (
+          <div>
+            <header className="mb-8">
+              <h2 className="text-2xl font-bold">ยินดีต้อนรับ, {profile?.name}</h2>
+              <span className="text-xs font-bold px-3 py-1 bg-blue-100 text-blue-700 rounded-full uppercase tracking-tighter">บทบาท: {profile?.role}</span>
+            </header>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses.map(course => {
+                const status = profile?.coursesStatus?.[course.id]?.status || 'ยังไม่เริ่ม';
+                return (
+                  <div key={course.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition">
+                    <h4 className="font-bold text-lg mb-2">{course.title}</h4>
+                    <p className="text-slate-500 text-sm mb-6 line-clamp-2">{course.description}</p>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${status === 'Passed' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>{status}</span>
+                      <button onClick={() => { setActiveCourse(course); setView('course'); }} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold">เข้าเรียน</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {view === 'user-management' && (
+          <div className="max-w-4xl">
+            <h2 className="text-2xl font-bold mb-6">ระบบจัดการผู้ได้รับอนุญาต (Whitelist)</h2>
+            <form onSubmit={addUser} className="bg-white p-6 rounded-3xl shadow-sm border mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+              <input name="newName" required className="p-3 border rounded-xl" placeholder="ชื่อ-นามสกุล" />
+              <input name="newEmail" type="email" required className="p-3 border rounded-xl" placeholder="อีเมล" />
+              <select name="newRole" className="p-3 border rounded-xl bg-white outline-none">
+                <option value="trainee">Trainee</option>
+                {profile?.role === 'owner' && <option value="admin">Admin</option>}
+              </select>
+              <button className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold">เพิ่มสิทธิ์</button>
+            </form>
+            <div className="bg-white rounded-3xl shadow-sm overflow-hidden border">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b">
+                  <tr><th className="p-4">รายชื่อ</th><th className="p-4">สถานะการเรียน</th><th className="p-4 text-right">จัดการ</th></tr>
+                </thead>
+                <tbody>
+                  {usersList.map(u => (
+                    <tr key={u.id} className="border-b last:border-0 hover:bg-slate-50">
+                      <td className="p-4"><div className="font-bold">{u.name}</div><div className="text-xs text-slate-400">{u.email} | {u.role}</div></td>
+                      <td className="p-4 flex gap-1">
+                        {courses.map(c => (
+                          <div key={c.id} className={`w-3 h-3 rounded-full ${u.coursesStatus?.[c.id]?.status === 'Passed' ? 'bg-green-500' : 'bg-slate-200'}`}></div>
+                        ))}
+                      </td>
+                      <td className="p-4 text-right">
+                        <button onClick={async () => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.id))} className="text-red-400 hover:text-red-600"><Trash2 size={18} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {view === 'course' && activeCourse && (
+          <div className="max-w-4xl mx-auto">
+            <button onClick={() => setView('dashboard')} className="mb-6 flex items-center gap-2 text-slate-500 hover:text-slate-800"><ArrowLeft size={18} /> กลับแดชบอร์ด</button>
+            <div className="aspect-video bg-black rounded-3xl overflow-hidden mb-6 shadow-2xl">
+              <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${activeCourse.videoId}`} frameBorder="0" allowFullScreen></iframe>
+            </div>
+            <div className="bg-white p-8 rounded-3xl border flex justify-between items-center">
+              <div><h2 className="text-2xl font-bold">{activeCourse.title}</h2><p className="text-slate-400">เมื่อดูจบแล้ว โปรดทำแบบทดสอบ</p></div>
+              <button onClick={() => { setCurrentQ(0); setUserAnswers({}); setView('quiz'); }} className="bg-red-600 text-white px-8 py-4 rounded-2xl font-bold">เริ่มทำข้อสอบ</button>
+            </div>
+          </div>
+        )}
+
+        {view === 'quiz' && (
+          <div className="max-w-xl mx-auto py-10">
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border">
+              <h3 className="text-xl font-bold mb-6">{activeCourse.questions[currentQ].q}</h3>
+              <div className="space-y-3">
+                {activeCourse.questions[currentQ].options.map((opt, i) => (
+                  <button key={i} onClick={() => setUserAnswers({...userAnswers, [currentQ]: i})} className={`w-full text-left p-5 rounded-2xl border-2 transition ${userAnswers[currentQ] === i ? 'border-red-600 bg-red-50 text-red-700 font-bold' : 'border-slate-100'}`}>{opt}</button>
+                ))}
+              </div>
+              <div className="mt-10 flex justify-between">
+                <button disabled={currentQ === 0} onClick={() => setCurrentQ(currentQ - 1)} className="text-slate-400">ย้อนกลับ</button>
+                {currentQ < activeCourse.questions.length - 1 ? (
+                  <button disabled={userAnswers[currentQ] === undefined} onClick={() => setCurrentQ(currentQ + 1)} className="bg-slate-900 text-white px-10 py-3 rounded-xl">ถัดไป</button>
+                ) : (
+                  <button disabled={userAnswers[currentQ] === undefined} onClick={submitQuiz} className="bg-red-600 text-white px-10 py-3 rounded-xl font-bold">ส่งคำตอบ</button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {view === 'result' && (
+          <div className="min-h-[60vh] flex flex-col items-center justify-center text-center">
+            {profile.coursesStatus[activeCourse.id].status === 'Passed' ? <CheckCircle size={80} className="text-green-500 mb-6" /> : <AlertCircle size={80} className="text-red-500 mb-6" />}
+            <h2 className="text-3xl font-bold mb-2">{profile.coursesStatus[activeCourse.id].status === 'Passed' ? 'ผ่านเกณฑ์!' : 'ยังไม่ผ่านเกณฑ์'}</h2>
+            <p className="text-xl text-slate-500 mb-8">คะแนน: {profile.coursesStatus[activeCourse.id].score}%</p>
+            <button onClick={() => setView('dashboard')} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold">กลับหน้าหลัก</button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
