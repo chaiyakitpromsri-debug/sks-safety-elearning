@@ -3,570 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Safety E-Learning (Online Version)</title>
+    <title>SKS Safety E-Learning</title>
+    <!-- ใช้งาน Tailwind CSS และ Lucide Icons ผ่าน CDN (ไม่ต้องติดตั้ง) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Firebase SDK (Google's Database) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <style>
-        body { font-family: 'Sarabun', sans-serif; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
-        @media print {
-            .no-print { display: none !important; }
-            .print-container { border: 10px double #333; padding: 40px; text-align: center; width: 100%; height: 100%; page-break-inside: avoid; }
-            body { background: white; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&display=swap');
+        body { font-family: 'Kanit', sans-serif; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .view.active-flex { display: flex; }
     </style>
 </head>
-<body class="bg-neutral-100 text-neutral-800">
-    <div id="root"></div>
+<body class="bg-slate-50 text-slate-900">
 
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        const { createRoot } = ReactDOM;
-
-        // --- ICON COMPONENT ---
-        const Icon = ({ name, size = 20, className = "" }) => {
-            useEffect(() => { if(window.lucide) window.lucide.createIcons(); }, [name]);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
-        };
-
-        // ==========================================
-        //  ส่วนที่ 1: การเชื่อมต่อ FIREBASE (DATABASE)
-        // ==========================================
-        
-        // ⚠️⚠️ นำค่าจาก Firebase Console มาวางแทนที่ตรงนี้ครับ ⚠️⚠️
-        const firebaseConfig = {
-  apiKey: "AIzaSyCTVPEG8h9T1OU7fv5nQyKifSC-vAyr1Bo",
-  authDomain: "driver-training-program.firebaseapp.com",
-  projectId: "driver-training-program",
-  storageBucket: "driver-training-program.firebasestorage.app",
-  messagingSenderId: "231400779221",
-  appId: "1:231400779221:web:877e508c2f3d2f053ca15c",
-  measurementId: "G-KBMVK6JH0G"
-};
-        // Initialize Firebase
-        let db;
-        try {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            db = firebase.firestore();
-        } catch (error) {
-            console.error("Firebase Error:", error);
-        }
-
-        // ==========================================
-        //  ส่วนที่ 2: ข้อมูลเริ่มต้น (ใช้กรณีสร้างคอร์สครั้งแรก)
-        // ==========================================
-        const DEFAULT_COURSES = [
-            {
-                id: 1,
-                title: "ความปลอดภัยในการขับขี่และขนส่ง",
-                description: "แนวทางการขับขี่เชิงป้องกันและการเช็คสภาพรถ",
-                videoId: "7S_uP0X0V9s",
-                passScore: 80,
-                questions: [
-                    { q: "ก่อนออกรถขนส่งทุกครั้ง ข้อใดสำคัญที่สุด?", options: ["เช็คราคาน้ำมัน", "ตรวจเช็คสภาพยางและเบรค", "เปิดเพลง", "เช็คไลน์"], a: 1 },
-                    { q: "การขับขี่เชิงป้องกันคือ?", options: ["ขับเร็วที่สุด", "ขับระวังและคาดการณ์", "ขับตามใจ", "ขับจี้ท้าย"], a: 1 }
-                ]
-            },
-            {
-                id: 2,
-                title: "อุปกรณ์ PPE ในคลังสินค้า",
-                description: "การเลือกใช้และบำรุงรักษาอุปกรณ์ PPE",
-                videoId: "vY9uXh7_v80",
-                passScore: 100,
-                questions: [
-                    { q: "พื้นที่รถ Forklift ควรใส่ชุดแบบใด?", options: ["ชุดลำลอง", "เสื้อสะท้อนแสง", "เสื้อดำ", "ชุดกันฝน"], a: 1 },
-                    { q: "รองเท้าเซฟตี้มีหน้าที่?", options: ["เดินเร็ว", "กันของตกใส่/ของมีคม", "สวยงาม", "กันน้ำ"], a: 1 }
-                ]
-            }
-        ];
-
-        function App() {
-            // State
-            const [view, setView] = useState('loading'); 
-            const [user, setUser] = useState(null);
-            const [allUsers, setAllUsers] = useState([]); // Admin sees everyone
-            const [courses, setCourses] = useState([]);
-            const [errorMsg, setErrorMsg] = useState("");
-
-            // Quiz State
-            const [activeCourse, setActiveCourse] = useState(null);
-            const [currentQ, setCurrentQ] = useState(0);
-            const [userAnswers, setUserAnswers] = useState({});
-
-            // Admin State
-            const [editingCourse, setEditingCourse] = useState(null);
-
-            // --- 1. Load Data from Firebase on Start ---
-            useEffect(() => {
-                if (!db) {
-                    setErrorMsg("ไม่สามารถเชื่อมต่อ Database ได้ กรุณาตรวจสอบการตั้งค่า firebaseConfig ในโค้ด");
-                    setView('config_error');
-                    return;
-                }
-
-                // 1.1 Listen to Courses (Real-time)
-                const unsubscribeCourses = db.collection('courses').onSnapshot(snapshot => {
-                    const loadedCourses = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                    if (loadedCourses.length === 0) {
-                        // If DB empty, seed default courses
-                        DEFAULT_COURSES.forEach(c => {
-                            db.collection('courses').doc(String(c.id)).set(c);
-                        });
-                    } else {
-                        // Sort by ID (converting to number if possible)
-                        loadedCourses.sort((a,b) => Number(a.id) - Number(b.id));
-                        setCourses(loadedCourses);
-                    }
-                }, err => console.log("Course Error:", err));
-
-                // 1.2 Check Local Session
-                const sessionEmail = localStorage.getItem('sks_online_email');
-                const sessionType = localStorage.getItem('sks_online_type');
-
-                if (sessionType === 'admin') {
-                    setUser({ name: 'ADMIN', company: 'AdminIMCT', email: 'warodom.no10@gmail.com' });
-                    setView('admin');
-                } else if (sessionEmail) {
-                    // Fetch latest user data from DB
-                    db.collection('users').doc(sessionEmail).get().then(doc => {
-                        if (doc.exists) {
-                            setUser(doc.data());
-                            setView('dashboard');
-                        } else {
-                            setView('login');
-                        }
-                    }).catch(() => setView('login'));
-                } else {
-                    setView('login');
-                }
-
-                return () => unsubscribeCourses();
-            }, []);
-
-            // --- 2. Admin Fetch All Users ---
-            useEffect(() => {
-                if (view === 'admin' && db) {
-                    const unsubscribeUsers = db.collection('users').onSnapshot(snapshot => {
-                        const users = snapshot.docs.map(doc => doc.data());
-                        setAllUsers(users);
-                    });
-                    return () => unsubscribeUsers();
-                }
-            }, [view]);
-
-            // --- 3. Actions ---
-
-            const handleLogin = async (e) => {
-                e.preventDefault();
-                const name = e.target.username.value.trim();
-                const company = e.target.company.value.trim();
-                const email = e.target.email.value.trim().toLowerCase(); // Use email as ID
-
-                // Admin Check
-                if (company === 'AdminIMCT' && name === 'ADMIN' && email === 'warodom.no10@gmail.com') { 
-                    localStorage.setItem('sks_online_type', 'admin');
-                    setView('admin'); 
-                    return; 
-                }
-
-                // Normal User Login
-                try {
-                    const userRef = db.collection('users').doc(email);
-                    const doc = await userRef.get();
-                    
-                    let userData;
-                    if (!doc.exists) {
-                        // Create New User
-                        userData = { 
-                            name, 
-                            company, 
-                            email, 
-                            coursesStatus: {}, 
-                            lastActive: new Date().toISOString() 
-                        };
-                        await userRef.set(userData);
-                    } else {
-                        // Update existing info
-                        userData = doc.data();
-                        if (userData.company !== company || userData.name !== name) {
-                            await userRef.update({ company, name, lastActive: new Date().toISOString() });
-                            userData.company = company;
-                            userData.name = name;
-                        }
-                    }
-                    
-                    localStorage.setItem('sks_online_email', email);
-                    localStorage.setItem('sks_online_type', 'user');
-                    setUser(userData);
-                    setView('dashboard');
-
-                } catch (err) {
-                    alert("Error Login: " + err.message);
-                }
-            };
-
-            const submitQuiz = async () => {
-                let score = 0;
-                activeCourse.questions.forEach((q, i) => { if (userAnswers[i] === q.a) score++; });
-                const percent = Math.round((score / activeCourse.questions.length) * 100);
-                const passed = percent >= activeCourse.passScore;
-
-                const newStatus = {
-                    status: passed ? 'Passed' : 'Failed',
-                    score: percent,
-                    date: new Date().toLocaleDateString('th-TH')
-                };
-
-                // Update Local State
-                const updatedUser = { ...user };
-                if (!updatedUser.coursesStatus) updatedUser.coursesStatus = {};
-                updatedUser.coursesStatus[activeCourse.id] = newStatus;
-                setUser(updatedUser);
-
-                // Update Firebase
-                if (db && user.email) {
-                    await db.collection('users').doc(user.email).update({
-                        [`coursesStatus.${activeCourse.id}`]: newStatus,
-                        lastActive: new Date().toISOString()
-                    });
-                }
-                
-                setView('result');
-            };
-
-            // Admin Course Management
-            const saveCourseAdmin = async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const courseId = editingCourse?.id || Date.now().toString();
-                
-                const newCourse = {
-                    id: courseId,
-                    title: formData.get('title'),
-                    description: formData.get('description'),
-                    videoId: formData.get('videoId'),
-                    passScore: parseInt(formData.get('passScore')),
-                    questions: editingCourse?.questions || []
-                };
-
-                await db.collection('courses').doc(String(courseId)).set(newCourse);
-                setEditingCourse(null);
-            };
-
-            const deleteCourseAdmin = async (id) => {
-                if(confirm("ยืนยันลบหลักสูตร?")) {
-                    await db.collection('courses').doc(String(id)).delete();
-                    setEditingCourse(null);
-                }
-            }
-
-            // --- Helpers ---
-            const handleLogout = () => {
-                localStorage.removeItem('sks_online_email');
-                localStorage.removeItem('sks_online_type');
-                setUser(null);
-                setView('login');
-            };
-
-            const calculateProgress = (u) => {
-                if (!u || !u.coursesStatus || courses.length === 0) return 0;
-                const passed = Object.values(u.coursesStatus).filter(c => c.status === 'Passed').length;
-                return Math.round((passed / courses.length) * 100);
-            };
-
-             const exportToCSV = () => {
-                let csvContent = "data:text/csv;charset=utf-8,ID,Name,Company,Email,Course,Score,Status,Date\n";
-                allUsers.forEach(u => {
-                    courses.forEach(c => {
-                        const stat = u.coursesStatus?.[c.id];
-                        csvContent += `"${u.email}","${u.name}","${u.company}","${u.email}","${c.title}",${stat?.score||0},${stat?.status||'Not Started'},"${stat?.date||'-'}"\n`;
-                    });
-                });
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", "safety_report_online.csv");
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            };
-
-            // --- VIEWS ---
-            if (view === 'config_error') return (
-                <div className="min-h-screen flex items-center justify-center bg-red-50 p-10 text-center">
-                    <div>
-                        <Icon name="alert-triangle" size={48} className="mx-auto text-red-500 mb-4" />
-                        <h1 className="text-2xl font-bold text-red-800">ยังไม่ได้ตั้งค่า Database</h1>
-                        <p className="mt-2 text-red-600">{errorMsg}</p>
-                        <p className="mt-4 text-sm text-gray-600 bg-white p-4 rounded border">
-                            วิธีแก้: เปิดไฟล์นี้ด้วย Notepad แล้วค้นหาบรรทัดที่เขียนว่า <code>const firebaseConfig</code> <br/>
-                            จากนั้นนำค่าจาก Firebase Console มาวางแทนที่ครับ
-                        </p>
-                    </div>
+    <!-- 1. ส่วนหน้า LOGIN -->
+    <div id="view-login" class="view active-flex min-h-screen items-center justify-center bg-slate-900 p-6">
+        <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center">
+            <div class="w-20 h-20 bg-red-50 flex items-center justify-center rounded-3xl mx-auto mb-6">
+                <i data-lucide="shield" class="w-10 h-10 text-red-600"></i>
+            </div>
+            <h1 class="text-3xl font-bold mb-2">SKS Safety</h1>
+            <p class="text-slate-500 mb-8">E-Learning & Data Tracking</p>
+            <form id="loginForm" class="space-y-4 text-left">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase ml-2">Email Address</label>
+                    <input type="email" id="emailInput" required class="w-full p-4 mt-1 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 transition" placeholder="name@company.com">
                 </div>
-            );
+                <button type="submit" class="w-full bg-red-600 text-white py-4 rounded-2xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all">เข้าสู่ระบบ</button>
+            </form>
+            <div class="mt-8 p-4 bg-slate-50 rounded-2xl">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Owner Access</p>
+                <p class="text-sm text-slate-600 font-mono">owner@sks.com</p>
+            </div>
+        </div>
+    </div>
 
-            if (view === 'loading') return <div className="min-h-screen flex items-center justify-center bg-neutral-100">กำลังเชื่อมต่อฐานข้อมูล...</div>;
+    <!-- 2. ส่วนหน้าจอหลักหลัง Login -->
+    <div id="view-main" class="view min-h-screen">
+        <div class="flex min-h-screen">
+            <!-- Sidebar เมนูข้าง -->
+            <aside class="w-72 bg-slate-900 text-white p-8 hidden md:flex flex-col">
+                <div class="flex items-center gap-3 mb-12">
+                    <div class="bg-red-600 p-2 rounded-lg"><i data-lucide="shield" class="w-6 h-6 text-white"></i></div>
+                    <h1 class="font-bold text-xl tracking-tight">SKS Safety</h1>
+                </div>
+                <nav class="space-y-2 flex-1">
+                    <button onclick="showSection('dashboard')" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl transition hover:bg-slate-800 text-slate-400" id="btn-dash">
+                        <i data-lucide="layout"></i> <span class="font-bold">หน้าหลัก</span>
+                    </button>
+                    <div id="admin-only-menu" class="hidden">
+                        <button onclick="showSection('admin')" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl transition hover:bg-slate-800 text-slate-400" id="btn-admin">
+                            <i data-lucide="users"></i> <span class="font-bold">จัดการผู้ใช้</span>
+                        </button>
+                    </div>
+                </nav>
+                <button onclick="location.reload()" class="flex items-center gap-3 p-4 text-slate-500 hover:text-white transition">
+                    <i data-lucide="log-out"></i> ออกจากระบบ
+                </button>
+            </aside>
 
-            // LOGIN
-            if (view === 'login') return (
-                <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-900 to-black">
-                    <div className="bg-white p-10 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-indigo-500">
-                        <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-4">
-                                <Icon name="cloud" size={32} className="text-indigo-600" />
-                            </div>
-                            <h1 className="text-2xl font-bold text-neutral-800">Safety Online</h1>
-                            <p className="text-neutral-500 text-sm mt-1">ระบบอบรมออนไลน์ (Cloud Database)</p>
+            <!-- Main Content ส่วนเนื้อหา -->
+            <main class="flex-1 p-6 md:p-12 overflow-y-auto">
+                <!-- Section: Dashboard (หน้าของพนักงาน) -->
+                <section id="section-dashboard" class="content-section">
+                    <header class="mb-10">
+                        <h2 class="text-4xl font-bold text-slate-800">สวัสดี, <span id="display-name">...</span></h2>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span id="display-role" class="px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold uppercase"></span>
+                            <span class="text-slate-400 text-sm">| SKS Safety Platform</span>
                         </div>
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <div><label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Company</label><input name="company" required className="w-full px-4 py-3 border rounded-lg" placeholder="บริษัท" /></div>
-                            <div><label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Name</label><input name="username" required className="w-full px-4 py-3 border rounded-lg" placeholder="ชื่อ-สกุล" /></div>
-                            <div><label className="block text-xs font-bold text-neutral-400 uppercase mb-1">Email</label><input name="email" type="email" required className="w-full px-4 py-3 border rounded-lg" placeholder="อีเมล (ใช้เป็น ID)" /></div>
-                            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-lg font-bold shadow-lg transition mt-4">เข้าสู่ระบบ</button>
+                    </header>
+                    <div id="course-list" class="grid grid-cols-1 md:grid-cols-2 gap-8 text-slate-900">
+                        <!-- บทเรียนจะโหลดจากระบบ -->
+                    </div>
+                </section>
+
+                <!-- Section: Admin (หน้าจัดการสิทธิ์ - เฉพาะ Owner/Admin) -->
+                <section id="section-admin" class="content-section hidden">
+                    <h2 class="text-3xl font-bold mb-8 text-slate-800">ระบบจัดการผู้ได้รับอนุญาต (Whitelist)</h2>
+                    <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 mb-10">
+                        <form id="addUserForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <input id="newName" placeholder="ชื่อ-นามสกุล" required class="p-4 border-2 border-slate-50 rounded-2xl outline-none focus:border-red-600 transition">
+                            <input id="newEmail" type="email" placeholder="อีเมล (เมลจริง)" required class="p-4 border-2 border-slate-50 rounded-2xl outline-none focus:border-red-600 transition">
+                            <select id="newRole" class="p-4 border-2 border-slate-50 rounded-2xl outline-none bg-white">
+                                <option value="trainee">Trainee (พนักงาน)</option>
+                                <option value="admin">Admin (หัวหน้า)</option>
+                            </select>
+                            <button type="submit" class="bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 shadow-lg shadow-red-100">เพิ่มสิทธิ์</button>
                         </form>
                     </div>
-                </div>
-            );
-
-            // DASHBOARD
-            if (view === 'dashboard') return (
-                <div className="max-w-7xl mx-auto p-6">
-                    <header className="flex justify-between items-center mb-10 pb-6 border-b">
-                        <div><h2 className="text-3xl font-bold">Dashboard</h2><p className="text-neutral-500">สวัสดี {user.name} ({user.company})</p></div>
-                        <button onClick={handleLogout} className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 flex gap-2 font-bold"><Icon name="log-out" size={16}/> ออกจากระบบ</button>
-                    </header>
-                    
-                    {/* Progress */}
-                    <div className="bg-indigo-900 text-white rounded-2xl p-8 mb-10 flex items-center justify-between shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
-                        <div>
-                            <h3 className="text-2xl font-bold mb-2">ความคืบหน้าของคุณ</h3>
-                            <p className="opacity-70">สำเร็จ {calculateProgress(user)}% ของหลักสูตรทั้งหมด</p>
-                        </div>
-                        <div className="text-4xl font-bold bg-white/10 p-4 rounded-xl backdrop-blur-sm">{calculateProgress(user)}%</div>
+                    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-50/50">
+                                <tr>
+                                    <th class="p-6 text-slate-400 font-bold uppercase text-[10px]">รายชื่อ</th>
+                                    <th class="p-6 text-slate-400 font-bold uppercase text-[10px]">สิทธิ์</th>
+                                    <th class="p-6 text-slate-400 font-bold uppercase text-[10px] text-right">ลบ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-table-body" class="text-slate-900">
+                                <!-- รายชื่อโหลดจาก Firebase -->
+                            </tbody>
+                        </table>
                     </div>
+                </section>
+            </main>
+        </div>
+    </div>
 
-                    {calculateProgress(user) === 100 && (
-                        <div onClick={() => setView('certificate')} className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-orange-200 p-4 rounded-xl mb-8 flex items-center gap-4 cursor-pointer hover:shadow-md transition">
-                            <div className="bg-orange-100 p-3 rounded-full text-orange-600"><Icon name="award" /></div>
-                            <div><h4 className="font-bold text-orange-800">ยินดีด้วย! คุณผ่านการอบรมครบแล้ว</h4><p className="text-sm text-orange-600">คลิกที่นี่เพื่อรับใบรับรอง (Certificate)</p></div>
-                        </div>
-                    )}
+    <!-- ส่วนเชื่อมต่อ Firebase (Backend) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {courses.map(course => {
-                            const status = user.coursesStatus?.[course.id]?.status || 'Not Started';
-                            return (
-                                <div key={course.id} className="bg-white p-6 rounded-2xl border hover:shadow-lg transition group">
-                                    <div className="flex justify-between mb-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${status==='Passed'?'bg-green-100 text-green-700':(status==='Failed'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-500')}`}>{status}</span>
-                                    </div>
-                                    <h4 className="font-bold text-lg mb-2 group-hover:text-indigo-600">{course.title}</h4>
-                                    <p className="text-gray-500 text-sm mb-6 line-clamp-2">{course.description}</p>
-                                    <button onClick={()=>{setActiveCourse(course); setView('course');}} className={`w-full py-3 rounded-lg font-bold ${status==='Passed'?'bg-gray-100 text-gray-600':'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
-                                        {status==='Passed'?'ทบทวนบทเรียน':'เข้าเรียน'}
-                                    </button>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            );
+        // Firebase Config ของคุณ
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
+            authDomain: "safety-e-learning-15c6e.firebaseapp.com",
+            projectId: "safety-e-learning-15c6e",
+            storageBucket: "safety-e-learning-15c6e.firebasestorage.app",
+            messagingSenderId: "382531903014",
+            appId: "1:382531903014:web:e256139500555a4145d0e7"
+        };
 
-            // COURSE & QUIZ views are similar to previous logic but updated submitQuiz
-            if (view === 'course') return (
-                <div className="max-w-4xl mx-auto p-6 min-h-screen flex flex-col">
-                    <button onClick={()=>setView('dashboard')} className="self-start mb-4 flex gap-2 text-gray-500 font-bold"><Icon name="arrow-left"/> กลับ</button>
-                    <div className="bg-black aspect-video rounded-xl overflow-hidden shadow-2xl mb-6">
-                        <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${activeCourse.videoId}`} frameBorder="0" allowFullScreen></iframe>
-                    </div>
-                    <div className="flex justify-between items-center bg-white p-6 rounded-xl border shadow-sm">
-                        <h2 className="text-xl font-bold">{activeCourse.title}</h2>
-                        <button onClick={()=>{setCurrentQ(0); setUserAnswers({}); setView('quiz');}} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-indigo-700">ทำแบบทดสอบ</button>
-                    </div>
-                </div>
-            );
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = "sks-safety-elearning";
 
-            if (view === 'quiz') return (
-                <div className="max-w-2xl mx-auto p-6 mt-10">
-                    <div className="bg-white rounded-2xl shadow-xl border overflow-hidden">
-                        <div className="bg-indigo-900 text-white p-6 flex justify-between">
-                            <h3 className="font-bold">{activeCourse.title}</h3>
-                            <span>{currentQ+1} / {activeCourse.questions.length}</span>
-                        </div>
-                        <div className="p-8">
-                            <h2 className="text-xl font-semibold mb-6">{activeCourse.questions[currentQ].q}</h2>
-                            <div className="space-y-3">
-                                {activeCourse.questions[currentQ].options.map((opt,i) => (
-                                    <button key={i} onClick={()=>setUserAnswers({...userAnswers, [currentQ]: i})} 
-                                        className={`w-full text-left p-4 rounded-xl border-2 transition ${userAnswers[currentQ]===i?'border-indigo-600 bg-indigo-50 text-indigo-900':'hover:border-gray-300'}`}>
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="p-6 bg-gray-50 border-t flex justify-between">
-                            <button disabled={currentQ===0} onClick={()=>setCurrentQ(c=>c-1)} className="text-gray-400 hover:text-gray-800 disabled:opacity-0">ย้อนกลับ</button>
-                            {currentQ < activeCourse.questions.length-1 ? 
-                                <button disabled={userAnswers[currentQ]===undefined} onClick={()=>setCurrentQ(c=>c+1)} className="bg-black text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">ถัดไป</button> :
-                                <button disabled={userAnswers[currentQ]===undefined} onClick={submitQuiz} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 shadow-lg">ส่งคำตอบ</button>
-                            }
-                        </div>
-                    </div>
-                </div>
-            );
+        let currentUserProfile = null;
 
-            if (view === 'result') {
-                const res = user.coursesStatus[activeCourse.id];
-                return (
-                    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-                        <div className="bg-white p-10 rounded-2xl shadow-xl text-center max-w-sm w-full">
-                            <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 ${res.status==='Passed'?'bg-green-100 text-green-600':'bg-red-100 text-red-600'}`}>
-                                <Icon name={res.status==='Passed'?'check':'x'} size={40} />
-                            </div>
-                            <h2 className="text-2xl font-bold mb-2">{res.status==='Passed'?'สอบผ่าน':'ไม่ผ่าน'}</h2>
-                            <p className="text-gray-500 mb-6">คะแนนของคุณ: {res.score}% (เกณฑ์ {activeCourse.passScore}%)</p>
-                            <button onClick={()=>setView('dashboard')} className="w-full bg-indigo-900 text-white py-3 rounded-lg font-bold mb-3">กลับหน้าหลัก</button>
-                            {res.status!=='Passed' && <button onClick={()=>setView('quiz')} className="w-full border py-3 rounded-lg font-bold hover:bg-gray-50">สอบแก้ตัว</button>}
-                        </div>
-                    </div>
-                )
-            }
+        // ตรวจสอบการ Login ตลอดเวลา
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) await signInAnonymously(auth);
+            lucide.createIcons();
+        });
 
-            // ADMIN
-            if (view === 'admin') return (
-                <div className="flex min-h-screen bg-gray-100">
-                    <aside className="w-64 bg-slate-900 text-white p-6 hidden md:block">
-                        <h1 className="font-bold text-xl mb-10 flex gap-2 items-center"><Icon name="database" className="text-indigo-400"/> Admin Cloud</h1>
-                        <nav className="space-y-2">
-                            <button onClick={()=>setEditingCourse(null)} className={`w-full text-left p-3 rounded ${!editingCourse?'bg-white/10':''}`}>Dashboard</button>
-                            <button onClick={()=>setEditingCourse({})} className={`w-full text-left p-3 rounded ${editingCourse?'bg-white/10':''}`}>จัดการหลักสูตร</button>
-                        </nav>
-                        <button onClick={handleLogout} className="mt-10 text-gray-400 hover:text-white flex gap-2"><Icon name="log-out" size={16}/> Logout</button>
-                    </aside>
-                    <main className="flex-1 p-8 overflow-y-auto">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-2xl font-bold text-slate-800">{editingCourse ? 'จัดการหลักสูตร' : 'ภาพรวมผู้เข้าอบรม (Real-time)'}</h2>
-                            <div className="flex gap-2">
-                                {!editingCourse && <button onClick={exportToCSV} className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 flex gap-2"><Icon name="file-spreadsheet" size={18}/> CSV</button>}
-                                <button onClick={handleLogout} className="md:hidden text-sm text-red-600 font-bold">Logout</button>
-                            </div>
-                        </div>
-
-                        {!editingCourse ? (
-                            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                                <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-gray-50 border-b">
-                                        <tr>
-                                            <th className="p-4 text-sm font-bold text-gray-500">User</th>
-                                            <th className="p-4 text-sm font-bold text-gray-500">Company</th>
-                                            <th className="p-4 text-sm font-bold text-gray-500">Progress</th>
-                                            <th className="p-4 text-sm font-bold text-gray-500 text-right">Last Active</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {allUsers.map(u => (
-                                            <tr key={u.email} className="hover:bg-gray-50">
-                                                <td className="p-4">
-                                                    <div className="font-bold text-slate-800">{u.name}</div>
-                                                    <div className="text-xs text-gray-400">{u.email}</div>
-                                                </td>
-                                                <td className="p-4 text-gray-600">{u.company}</td>
-                                                <td className="p-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-green-500" style={{width: `${calculateProgress(u)}%`}}></div>
-                                                        </div>
-                                                        <span className="text-xs font-bold">{calculateProgress(u)}%</span>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 text-right text-xs text-gray-400">
-                                                    {u.lastActive ? new Date(u.lastActive).toLocaleDateString('th-TH') : '-'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="space-y-4">
-                                    {courses.map(c => (
-                                        <div key={c.id} onClick={()=>setEditingCourse(c)} className={`p-4 border rounded-xl cursor-pointer ${editingCourse.id===c.id?'bg-slate-800 text-white':'bg-white hover:border-indigo-400'}`}>
-                                            <h4 className="font-bold">{c.title}</h4>
-                                            <p className="text-xs opacity-70">{c.questions.length} questions</p>
-                                        </div>
-                                    ))}
-                                    <button onClick={()=>setEditingCourse({})} className="w-full py-3 border-2 border-dashed rounded-xl text-gray-400 font-bold hover:text-indigo-600 hover:border-indigo-600">+ เพิ่มหลักสูตร</button>
-                                </div>
-                                <div className="lg:col-span-2 bg-white p-8 rounded-xl border shadow-sm">
-                                    <h3 className="font-bold text-lg mb-6">{editingCourse.id ? 'แก้ไขหลักสูตร' : 'สร้างใหม่'}</h3>
-                                    <form onSubmit={saveCourseAdmin} className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div><label className="text-xs font-bold text-gray-400">Title</label><input name="title" defaultValue={editingCourse.title} required className="w-full p-2 border rounded"/></div>
-                                            <div><label className="text-xs font-bold text-gray-400">Video ID</label><input name="videoId" defaultValue={editingCourse.videoId} required className="w-full p-2 border rounded"/></div>
-                                        </div>
-                                        <div><label className="text-xs font-bold text-gray-400">Description</label><textarea name="description" defaultValue={editingCourse.description} className="w-full p-2 border rounded h-20"></textarea></div>
-                                        <div><label className="text-xs font-bold text-gray-400">Pass Score</label><input name="passScore" type="number" defaultValue={editingCourse.passScore||80} className="w-20 p-2 border rounded"/></div>
-                                        <div className="flex justify-between pt-4">
-                                            {editingCourse.id && <button type="button" onClick={()=>deleteCourseAdmin(editingCourse.id)} className="text-red-500 text-sm">ลบหลักสูตรนี้</button>}
-                                            <div className="flex gap-2">
-                                                <button type="button" onClick={()=>setEditingCourse(null)} className="px-4 py-2 text-gray-500 font-bold">ยกเลิก</button>
-                                                <button className="bg-indigo-600 text-white px-6 py-2 rounded font-bold shadow hover:bg-indigo-700">บันทึก</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        )}
-                    </main>
-                </div>
-            );
+        // จัดการการส่งฟอร์ม Login
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value.toLowerCase();
+            const docId = email.replace(/[@.]/g, '_');
             
-            // Certificate View (Reuse Logic)
-             if (view === 'certificate') return (
-                <div className="p-10 flex flex-col items-center bg-gray-200 min-h-screen">
-                    <div className="no-print w-full max-w-4xl flex justify-between mb-6">
-                        <button onClick={() => setView('dashboard')} className="px-4 py-2 bg-white rounded shadow font-bold text-sm">กลับ</button>
-                        <button onClick={() => window.print()} className="bg-indigo-600 text-white px-6 py-2 rounded shadow font-bold text-sm">พิมพ์</button>
-                    </div>
-                    <div className="bg-white border-[10px] border-double border-slate-800 p-16 w-[297mm] h-[210mm] shadow-2xl relative text-center flex flex-col justify-center items-center print-container scale-75 origin-top">
-                         <h1 className="text-5xl font-serif font-bold tracking-tight mb-2">CERTIFICATE</h1>
-                        <p className="text-lg text-indigo-600 font-bold uppercase tracking-[0.4em] mb-12">of completion</p>
-                        <h2 className="text-4xl font-bold border-b-2 border-gray-300 inline-block px-12 pb-4 mb-8 min-w-[400px]">{user.name}</h2>
-                        <p className="text-gray-600 text-xl mb-8">บริษัท <span className="font-bold">{user.company}</span> ได้ผ่านการอบรมครบถ้วน</p>
-                        <div className="flex justify-between w-full px-20 items-end mt-10">
-                            <div className="text-center"><div className="text-lg font-bold border-b pb-1 px-4">{new Date().toLocaleDateString('th-TH')}</div><div className="text-xs text-gray-400 mt-1">Date</div></div>
-                            <div className="text-center"><Icon name="award" className="text-indigo-600 mx-auto mb-2" size={40} /><div className="text-xs text-gray-400 font-bold uppercase">Safety Director</div></div>
-                        </div>
-                    </div>
-                </div>
-            );
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', docId);
+            const userDoc = await getDoc(userRef);
 
-            return null;
+            if (userDoc.exists()) {
+                loginSuccess(userDoc.data());
+            } else if (email === 'owner@sks.com') {
+                const ownerData = { email, name: 'SKS Owner', role: 'owner' };
+                await setDoc(userRef, ownerData);
+                loginSuccess(ownerData);
+            } else {
+                alert('ไม่พบอีเมลนี้ในระบบสิทธิ์การใช้งาน กรุณาติดต่อ Admin');
+            }
+        };
+
+        function loginSuccess(profile) {
+            currentUserProfile = profile;
+            document.getElementById('view-login').classList.remove('active-flex');
+            document.getElementById('view-main').classList.add('active');
+            document.getElementById('display-name').innerText = profile.name;
+            document.getElementById('display-role').innerText = profile.role;
+
+            if (profile.role === 'owner' || profile.role === 'admin') {
+                document.getElementById('admin-only-menu').classList.remove('hidden');
+                initAdminSync();
+            }
+            showSection('dashboard');
+            initCourseSync();
         }
 
-        const root = createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // ระบบเปลี่ยนหน้าจอ
+        window.showSection = (sectionName) => {
+            document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`section-${sectionName}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('bg-red-600', 'text-white'));
+            const activeBtn = sectionName === 'dashboard' ? 'btn-dash' : 'btn-admin';
+            document.getElementById(activeBtn).classList.add('bg-red-600', 'text-white');
+            lucide.createIcons();
+        };
+
+        // ดึงข้อมูลรายชื่อพนักงานแบบ Real-time
+        function initAdminSync() {
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
+                const tbody = document.getElementById('user-table-body');
+                tbody.innerHTML = '';
+                snap.forEach(docSnap => {
+                    const u = docSnap.data();
+                    const row = `
+                        <tr class="border-t border-slate-50 hover:bg-slate-50/30 transition text-slate-900">
+                            <td class="p-6">
+                                <div class="font-bold">${u.name}</div>
+                                <div class="text-xs text-slate-400">${u.email}</div>
+                            </td>
+                            <td class="p-6">
+                                <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}">
+                                    ${u.role}
+                                </span>
+                            </td>
+                            <td class="p-6 text-right">
+                                <button onclick="deleteUser('${docSnap.id}')" class="text-slate-300 hover:text-red-500 transition-colors">
+                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+                lucide.createIcons();
+            });
+        }
+
+        window.deleteUser = async (id) => {
+            if(confirm('ยืนยันการลบสิทธิ์ผู้ใช้นี้?')) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
+            }
+        };
+
+        // ฟังก์ชันเพิ่มรายชื่อพนักงาน
+        document.getElementById('addUserForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('newName').value;
+            const email = document.getElementById('newEmail').value.toLowerCase();
+            const role = document.getElementById('newRole').value;
+            const docId = email.replace(/[@.]/g, '_');
+            
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', docId), {
+                name, email, role, coursesStatus: {}
+            });
+            e.target.reset();
+            alert('เพิ่มรายชื่อสำเร็จ!');
+        };
+
+        function initCourseSync() {
+            const courses = [
+                { title: "ความปลอดภัยในการขับขี่", desc: "พื้นฐานการใช้งานยานพาหนะในคลัง" },
+                { title: "การสวมใส่อุปกรณ์ PPE", desc: "ความสำคัญและการเลือกใช้อุปกรณ์ป้องกัน" }
+            ];
+            const container = document.getElementById('course-list');
+            container.innerHTML = courses.map(c => `
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group">
+                    <div class="relative z-10">
+                        <h3 class="text-xl font-bold mb-2">${c.title}</h3>
+                        <p class="text-slate-500 text-sm mb-8">${c.desc}</p>
+                        <button class="bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold hover:bg-red-600 transition-colors">เข้าเรียนเนื้อหา</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
     </script>
 </body>
 </html>
