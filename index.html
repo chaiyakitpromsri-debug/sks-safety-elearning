@@ -72,7 +72,7 @@
                         <p id="user-display-name" class="font-bold text-sm truncate text-white"></p>
                         <p id="role-badge" class="text-[9px] font-black text-red-500 uppercase tracking-widest"></p>
                     </div>
-                    <button onclick="location.reload()" class="flex items-center gap-3 text-slate-500 hover:text-white transition-colors font-bold text-sm">
+                    <button id="logoutBtn" class="flex items-center gap-3 text-slate-500 hover:text-white transition-colors font-bold text-sm">
                         <i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ
                     </button>
                 </div>
@@ -166,46 +166,64 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
         let db, auth;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'sks-safety-enterprise-v3';
         const OWNER_EMAIL = 'owner@sks.com';
         let currentUser = null;
         let currentCourseDraft = { questions: [] };
+        let authReady = false;
 
-        // 1. Initial System
+        // 1. Initial System - Fix Rule 3: Auth Before Queries
         async function init() {
             try {
                 const firebaseConfig = JSON.parse(__firebase_config);
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                await signInAnonymously(auth);
-                onAuthStateChanged(auth, (user) => { if(user) hideLoading(); });
+
+                // Initialize Authentication
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => { 
+                    if(user) {
+                        authReady = true;
+                        hideLoading();
+                        console.log("Auth initialized successfully");
+                    } 
+                });
             } catch (e) { 
-                console.error(e); 
+                console.error("Init Error:", e); 
                 setTimeout(hideLoading, 2000); 
             }
         }
 
         const hideLoading = () => {
             const l = document.getElementById('loading-overlay');
-            l.classList.add('opacity-0');
-            setTimeout(() => l.style.display = 'none', 500);
+            if(l) {
+                l.classList.add('opacity-0');
+                setTimeout(() => l.style.display = 'none', 500);
+            }
         };
 
         // 2. Login & Registration Logic
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
+            if (!authReady) return alert("System still loading, please wait...");
+
             const email = document.getElementById('emailInput').value.trim().toLowerCase();
             const msg = document.getElementById('login-status-msg');
             const emailKey = email.replace(/[@.]/g, '_');
 
             try {
                 if (email === OWNER_EMAIL) {
-                    currentUser = { email, name: "System Owner", role: "owner" };
+                    currentUser = { email, name: "System Owner", role: "owner", uid: auth.currentUser.uid };
                     return launch();
                 }
 
@@ -214,6 +232,7 @@
 
                 if (snap.exists()) {
                     currentUser = snap.data();
+                    currentUser.uid = auth.currentUser.uid; // Ensure UID is attached
                     launch();
                 } else {
                     const regFields = document.getElementById('reg-fields');
@@ -225,12 +244,15 @@
                         const company = document.getElementById('regCompany').value;
                         if (!name || !company) throw new Error("กรุณากรอกข้อมูลให้ครบ");
                         
-                        currentUser = { email, name, company, role: "trainee", history: [], progress: 0 };
+                        currentUser = { email, name, company, role: "trainee", history: [], progress: 0, uid: auth.currentUser.uid };
                         await setDoc(userRef, currentUser);
                         launch();
                     }
                 }
-            } catch (err) { msg.innerText = err.message; }
+            } catch (err) { 
+                console.error("Login Error:", err);
+                msg.innerText = "Error: " + err.message; 
+            }
         };
 
         // 3. App Launch (Navigation Setup)
@@ -254,27 +276,36 @@
             }
 
             nav.innerHTML = menu.map(m => `
-                <button onclick="showSec('${m.id}')" class="w-full flex items-center gap-3 p-4 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-bold text-sm">
+                <button onclick="showSec('${m.id}')" class="nav-btn w-full flex items-center gap-3 p-4 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-bold text-sm">
                     <i data-lucide="${m.icon}" class="w-5 h-5"></i> <span>${m.label}</span>
                 </button>
             `).join('');
 
             window.showSec = (id) => {
                 document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
-                document.getElementById(`sec-${id}`).classList.remove('hidden');
+                const target = document.getElementById(`sec-${id}`);
+                if(target) target.classList.remove('hidden');
+                
+                // Active state for nav
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-slate-800', 'text-white'));
             };
 
             showSec(menu[0].id);
             lucide.createIcons();
 
+            // Load data based on role
             if (currentUser.role !== 'trainee') loadAllTrainees();
             if (currentUser.role === 'trainee' || currentUser.role === 'owner') loadCourses();
         }
 
         // 4. Owner & Admin Functions (Analytics & Whitelist)
         function loadAllTrainees() {
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
+            if (!authReady || !currentUser) return;
+            
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+            onSnapshot(usersRef, (snap) => {
                 const tbody = document.getElementById('trainee-table-body');
+                if(!tbody) return;
                 tbody.innerHTML = '';
                 const users = [];
                 snap.forEach(d => {
@@ -284,8 +315,8 @@
                         tbody.innerHTML += `
                             <tr class="border-t border-slate-50 hover:bg-slate-50 transition">
                                 <td class="p-6">
-                                    <p class="font-bold text-slate-800">${u.name}</p>
-                                    <p class="text-[9px] text-slate-400 uppercase tracking-widest">${u.company}</p>
+                                    <p class="font-bold text-slate-800">${u.name || 'Unknown'}</p>
+                                    <p class="text-[9px] text-slate-400 uppercase tracking-widest">${u.company || 'N/A'}</p>
                                 </td>
                                 <td class="p-6">
                                     <div class="flex items-center gap-3">
@@ -301,14 +332,17 @@
                         `;
                     }
                 });
-                window._allTraineesData = users; // Cache for CSV
+                window._allTraineesData = users; 
+            }, (error) => {
+                console.error("Trainee Load Error:", error);
             });
         }
 
         window.exportToCSV = () => {
             const data = window._allTraineesData || [];
+            if(data.length === 0) return alert("No data to export");
             let csv = "Name,Company,Email,Progress,Role\n";
-            data.forEach(u => csv += `"${u.name}","${u.company}","${u.email}",${u.progress}%,"${u.role}"\n`);
+            data.forEach(u => csv += `"${u.name || ''}","${u.company || ''}","${u.email || ''}",${u.progress || 0}%,"${u.role || ''}"\n`);
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -325,11 +359,15 @@
             e.preventDefault();
             const email = document.getElementById('adminEmail').value.trim().toLowerCase();
             const emailKey = email.replace(/[@.]/g, '_');
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', emailKey), {
-                email, name: "Admin User", role: "admin"
-            });
-            alert('Admin access granted to: ' + email);
-            e.target.reset();
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', emailKey), {
+                    email, name: "Admin User", role: "admin"
+                });
+                alert('Admin access granted to: ' + email);
+                e.target.reset();
+            } catch (err) {
+                alert("Error adding admin: " + err.message);
+            }
         };
 
         // 5. Course Creator Logic (Owner Only)
@@ -357,10 +395,9 @@
             const choices = Array.from(document.querySelectorAll('.choice-input')).map(i => i.value).filter(v => v);
             if(!qTxt || choices.length < 2) return alert('กรุณาระบุคำถามและอย่างน้อย 2 ตัวเลือก');
             
-            currentCourseDraft.questions.push({ q: qTxt, options: choices, a: 0 }); // Default first is correct
+            currentCourseDraft.questions.push({ q: qTxt, options: choices, a: 0 }); 
             renderDraftQuestions();
             
-            // Reset question form
             document.getElementById('qText').value = '';
             document.getElementById('choices-container').innerHTML = `
                 <input type="text" class="choice-input w-full p-3 border rounded-xl bg-white" placeholder="Choice 1 (Correct)">
@@ -380,16 +417,23 @@
 
         window.finishCourse = async () => {
             if(currentCourseDraft.questions.length === 0) return alert('ต้องมีอย่างน้อย 1 คำถาม');
-            const id = 'course_' + Date.now();
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'courses', id), currentCourseDraft);
-            alert('Module Deployed Successfully!');
-            location.reload();
+            try {
+                const id = 'course_' + Date.now();
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'courses', id), currentCourseDraft);
+                alert('Module Deployed Successfully!');
+                location.reload();
+            } catch (err) {
+                alert("Error deploying course: " + err.message);
+            }
         };
 
         // 6. Trainee Load Courses
         function loadCourses() {
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'courses'), (snap) => {
+            if (!authReady) return;
+            const coursesRef = collection(db, 'artifacts', appId, 'public', 'data', 'courses');
+            onSnapshot(coursesRef, (snap) => {
                 const list = document.getElementById('quiz-list');
+                if(!list) return;
                 list.innerHTML = '';
                 snap.forEach(d => {
                     const c = d.data();
@@ -408,8 +452,14 @@
                     `;
                 });
                 lucide.createIcons();
+            }, (error) => {
+                console.error("Course Load Error:", error);
             });
         }
+
+        document.getElementById('logoutBtn').onclick = () => {
+            location.reload();
+        };
 
         init();
     </script>
