@@ -3,166 +3,237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SKS Safety LMS - Professional Edition</title>
+    <title>SKS Safety LMS - Enterprise</title>
     
+    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; margin: 0; overflow: hidden; }
+        body { font-family: 'Kanit', sans-serif; background-color: #f1f5f9; }
         .hidden { display: none !important; }
-        .active-link { background-color: #ef4444 !important; color: white !important; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade { animation: fadeIn 0.3s ease-out; }
+        .active-tab { border-bottom: 3px solid #dc2626; color: #dc2626; font-weight: bold; }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); }
+        .print-only { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #certificate-view, #certificate-view * { visibility: visible; }
+            #certificate-view { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; display: flex !important; }
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
-<body class="bg-slate-50">
+<body>
 
-    <div id="loading-screen" class="fixed inset-0 z-[999] bg-slate-900 flex items-center justify-center text-white flex-col gap-4">
-        <i class="fa-solid fa-shield-halved fa-bounce text-5xl text-red-600"></i>
-        <p class="animate-pulse tracking-widest font-light uppercase">Initializing SKS Infrastructure...</p>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center text-white">
+        <i class="fa-solid fa-circle-notch fa-spin text-5xl text-red-600 mb-4"></i>
+        <p class="animate-pulse font-bold tracking-widest">CONNECTING SKS DATABASE...</p>
     </div>
 
+    <!-- App Root -->
     <div id="app" class="h-screen w-full flex overflow-hidden hidden">
-        <aside id="sidebar" class="w-20 md:w-64 bg-slate-900 text-white flex flex-col p-4 z-50">
-            <div class="flex items-center gap-3 mb-10 px-2 justify-center md:justify-start">
-                <i class="fa-solid fa-shield-halved text-2xl text-red-500"></i>
-                <span class="hidden md:block font-bold text-xl italic tracking-tighter uppercase">SKS Safety</span>
-            </div>
-            <nav class="flex-1 space-y-2" id="main-nav"></nav>
-            <div class="mt-auto pt-4 border-t border-slate-800">
-                <div id="user-info" class="mb-4 hidden md:block px-2">
-                    <p id="user-role-label" class="text-[10px] font-bold text-red-500 uppercase tracking-widest"></p>
-                    <p id="user-name-label" class="text-sm font-bold truncate text-slate-300"></p>
+        
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-900 text-white flex flex-col p-4 flex-shrink-0">
+            <div class="flex items-center gap-3 mb-10 px-2">
+                <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center font-bold italic text-xl">SKS</div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">SKS SAFETY</h1>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">LMS Platform</p>
                 </div>
-                <button onclick="logout()" class="w-full flex items-center gap-3 p-3 text-slate-400 hover:text-white transition group hover:bg-red-500/10 rounded-xl">
-                    <i class="fa-solid fa-right-from-bracket w-6 text-center group-hover:translate-x-1 transition-transform"></i>
-                    <span class="hidden md:block">ออกจากระบบ</span>
+            </div>
+            
+            <nav id="nav-menu" class="flex-1 space-y-2 text-sm font-medium"></nav>
+
+            <div class="mt-auto border-t border-slate-800 pt-4">
+                <div class="px-2 mb-4">
+                    <p id="user-role-display" class="text-[10px] font-bold text-red-500 uppercase"></p>
+                    <p id="user-name-display" class="truncate font-bold"></p>
+                </div>
+                <button onclick="logout()" class="flex items-center gap-3 text-slate-400 hover:text-white px-2 transition">
+                    <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
                 </button>
             </div>
         </aside>
 
+        <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden relative">
-            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 md:px-8">
-                <h2 id="page-title" class="font-bold text-lg text-slate-700 uppercase">หน้าหลัก</h2>
-                <div class="flex items-center gap-4">
-                    <div id="sync-status" class="text-[10px] text-green-500 font-black italic">CONNECTED</div>
-                    <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border"><i class="fa-solid fa-user text-xs text-slate-400"></i></div>
+            <!-- Top Bar -->
+            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10">
+                <h2 id="page-header" class="text-xl font-bold text-slate-800">หน้าหลัก</h2>
+                <div class="flex items-center gap-2 text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> SYSTEM ONLINE
                 </div>
             </header>
-            <section id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-slate-50"></section>
+
+            <!-- Content Container -->
+            <div id="content-area" class="flex-1 overflow-y-auto p-8 custom-scrollbar"></div>
         </main>
     </div>
 
-    <!-- Auth Container -->
-    <div id="auth-container" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4 hidden">
-        <div id="login-view" class="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-fade">
-            <div class="text-center mb-6">
-                <i class="fa-solid fa-shield-halved text-3xl text-red-600 mb-4"></i>
-                <h1 class="text-2xl font-black italic text-slate-900 tracking-tighter uppercase">SKS Login</h1>
-            </div>
-            <form id="login-form" class="space-y-4">
-                <input type="email" id="login-email" required placeholder="E-MAIL" class="w-full p-4 bg-slate-100 rounded-xl outline-none focus:border-red-500 border-2 border-transparent transition-all font-medium" />
-                <input type="password" id="login-pass" required placeholder="PASSWORD" class="w-full p-4 bg-slate-100 rounded-xl outline-none focus:border-red-500 border-2 border-transparent transition-all font-medium" />
-                <div id="login-error" class="text-red-500 text-xs font-bold text-center hidden"></div>
-                <button type="submit" class="w-full bg-slate-900 text-white p-4 rounded-xl font-bold hover:bg-red-600 transition-all shadow-xl active:scale-95">เข้าสู่ระบบ</button>
-            </form>
-        </div>
-
-        <div id="register-view" class="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl animate-fade hidden">
-            <h2 class="text-2xl font-black mb-1 italic text-slate-900">ลงทะเบียน</h2>
-            <p id="reg-role-text" class="text-slate-400 text-[10px] mb-6 uppercase tracking-widest font-bold">New Trainee Registration</p>
+    <!-- Certificate View (Hidden by default, used for print) -->
+    <div id="certificate-view" class="hidden fixed inset-0 z-[100] bg-white flex-col items-center justify-center">
+        <div class="border-[10px] border-double border-slate-800 p-10 w-[297mm] h-[210mm] relative flex flex-col items-center justify-between bg-white text-slate-900 shadow-2xl scale-[0.8] md:scale-100 origin-center">
             
-            <form id="register-form" class="space-y-3">
-                <input type="text" id="reg-name" placeholder="ชื่อ-นามสกุล" required class="w-full p-3 bg-slate-100 rounded-xl border focus:border-red-500" />
-                <!-- ฟิลด์นี้จะเปลี่ยนระหว่าง บริษัท กับ แผนก ตามบทบาท -->
-                <input type="text" id="reg-company-dept" placeholder="บริษัทขนส่ง" required class="w-full p-3 bg-slate-100 rounded-xl border focus:border-red-500" />
-                <input type="password" id="reg-pass" placeholder="ตั้งรหัสผ่าน" required class="w-full p-3 bg-slate-100 rounded-xl border focus:border-red-500" />
-                <button type="submit" class="w-full bg-red-600 text-white p-4 rounded-xl font-bold shadow-lg mt-4">บันทึกและเริ่มใช้งาน</button>
-            </form>
+            <!-- Header -->
+            <div class="w-full flex justify-between items-start border-b-4 border-red-600 pb-4">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Isuzu_Motors_Logo.svg/2560px-Isuzu_Motors_Logo.svg.png" class="h-12 object-contain" alt="ISUZU Logo">
+                <div class="text-right">
+                    <h1 class="text-4xl font-black italic tracking-tighter text-slate-900">CERTIFICATE</h1>
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-[0.3em]">Of Completion</p>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="text-center flex-1 flex flex-col justify-center gap-4">
+                <p class="text-xl text-slate-500 italic">This certifies that / ใบรับรองฉบับนี้มอบให้เพื่อแสดงว่า</p>
+                <h2 id="cert-name" class="text-5xl font-bold text-slate-900 border-b-2 border-slate-300 pb-2 px-10 inline-block min-w-[500px]"></h2>
+                <p id="cert-company" class="text-xl font-bold text-slate-600"></p>
+                
+                <p class="text-lg text-slate-500 mt-4">Has successfully completed the curriculum / ได้ผ่านหลักสูตร</p>
+                <h3 id="cert-course" class="text-3xl font-black text-red-600 uppercase"></h3>
+                <p class="text-slate-400 text-sm">Completed on: <span id="cert-date"></span></p>
+            </div>
+
+            <!-- Footer -->
+            <div class="w-full flex justify-around items-end pt-8">
+                <div class="text-center">
+                    <div class="w-48 border-b-2 border-slate-800 mb-2"></div>
+                    <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Instructor Signature</p>
+                </div>
+                <div class="text-center">
+                    <div class="flex flex-col items-center">
+                        <div class="h-12 flex items-end font-bold text-xl font-serif text-slate-800 mb-1">IMCT / SKS</div>
+                        <div class="w-48 border-b-2 border-slate-800 mb-2"></div>
+                    </div>
+                    <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Approved By (IMCT/SKS)</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="fixed bottom-10 left-1/2 -translate-x-1/2 no-print flex gap-4">
+            <button onclick="window.print()" class="bg-slate-900 text-white px-8 py-3 rounded-full font-bold shadow-xl hover:bg-black transition"><i class="fa-solid fa-print"></i> พิมพ์ใบรับรอง</button>
+            <button onclick="document.getElementById('certificate-view').classList.add('hidden')" class="bg-white text-slate-900 px-8 py-3 rounded-full font-bold shadow-xl hover:bg-slate-100 transition">ปิดหน้าต่าง</button>
         </div>
     </div>
 
-    <!-- Firebase Compat SDK -->
+    <!-- Auth Modals -->
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-red-600"></div>
+            
+            <!-- Login Form -->
+            <div id="login-form-container">
+                <h2 class="text-2xl font-bold mb-2">ลงชื่อเข้าใช้งาน</h2>
+                <p class="text-slate-500 text-sm mb-6">สำหรับพนักงานและผู้ดูแลระบบ SKS Safety</p>
+                <form id="login-form" class="space-y-4">
+                    <input type="email" id="login-email" required placeholder="อีเมล (เช่น owner@sks.com)" class="w-full p-4 bg-slate-50 border rounded-xl outline-none focus:border-red-500 transition">
+                    <button class="w-full bg-red-600 text-white py-4 rounded-xl font-bold hover:bg-red-700 transition shadow-lg">เข้าสู่ระบบ</button>
+                </form>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form-container" class="hidden">
+                <h2 class="text-2xl font-bold mb-2">ลงทะเบียนพนักงาน</h2>
+                <p class="text-slate-500 text-sm mb-6">กรุณาระบุข้อมูลเพื่อเริ่มการอบรม</p>
+                <form id="register-form" class="space-y-4">
+                    <input type="text" id="reg-name" required placeholder="ชื่อ-นามสกุล" class="w-full p-4 bg-slate-50 border rounded-xl outline-none focus:border-red-500 transition">
+                    <input type="text" id="reg-company" required placeholder="ชื่อบริษัทขนส่ง" class="w-full p-4 bg-slate-50 border rounded-xl outline-none focus:border-red-500 transition">
+                    <button class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-black transition shadow-lg">บันทึกข้อมูล</button>
+                    <button type="button" onclick="toggleAuthMode('login')" class="w-full text-slate-400 text-sm font-bold mt-2">กลับไปหน้าล็อกอิน</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- React/Firebase Dependencies -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
-            authDomain: "safety-e-learning-15c6e.firebaseapp.com",
-            projectId: "safety-e-learning-15c6e",
-            storageBucket: "safety-e-learning-15c6e.firebasestorage.app",
-            messagingSenderId: "382531903014",
-            appId: "1:382531903014:web:e256139500555a4145d0e7"
+        // --- 1. CONFIGURATION ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
         };
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'sks-safety-enterprise-final';
+        const OWNER_EMAIL = 'owner@sks.com';
 
-        const APP_ID = 'sks-safety-v12';
-        const OWNER_CREDENTIALS = { email: "owner@sks.com", password: "sks10" };
-
-        firebase.initializeApp(firebaseConfig);
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (e) { console.error(e); }
+        
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let currentProfile = null;
-        let courses = [];
-        let allUsers = [];
-        let whitelist = [];
-        let currentView = 'dashboard';
-        let isPendingAdmin = false; // Check if the email is in whitelist during registration
-
-        const getPublicCollection = (col) => db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(col);
-        const getWhitelistDoc = () => db.collection('artifacts').doc(APP_ID).collection('public').doc('settings');
-
+        // State
+        let currentUser = null;
+        let userProfile = null;
+        let curriculums = []; // หลักสูตร (ประกอบด้วยหลาย courses)
+        let allUsers = []; // Admin & Trainee list
+        
+        // --- 2. CORE SYSTEM ---
         async function init() {
-            try {
-                await auth.signInAnonymously();
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    currentUser = user;
+                    // Mock check if config fails in preview
+                    if(!firebaseConfig.apiKey) {
+                        alert("Firebase Config Missing: Please configure in Vercel/Code");
+                    }
+                } else {
+                    await auth.signInAnonymously().catch(e => console.log("Auth retry..."));
+                }
+                
+                // Hide loader only when ready to show login
                 document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('auth-container').classList.remove('hidden');
-            } catch (e) { console.error(e); }
+                if(!userProfile) showAuthModal();
+            });
         }
 
-        // --- AUTH LOGIC ---
+        function showAuthModal() {
+            document.getElementById('auth-modal').classList.remove('hidden');
+            document.getElementById('app').classList.add('hidden');
+        }
+
+        function toggleAuthMode(mode) {
+            if(mode === 'register') {
+                document.getElementById('login-form-container').classList.add('hidden');
+                document.getElementById('register-form-container').classList.remove('hidden');
+            } else {
+                document.getElementById('login-form-container').classList.remove('hidden');
+                document.getElementById('register-form-container').classList.add('hidden');
+            }
+        }
+
+        // --- 3. AUTH LOGIC ---
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim().toLowerCase();
-            const pass = document.getElementById('login-pass').value.trim();
             const emailKey = email.replace(/[@.]/g, '_');
 
-            if (email === OWNER_CREDENTIALS.email && pass === OWNER_CREDENTIALS.password) {
-                loginSuccess({ email, name: 'SKS Owner', role: 'owner', company: 'SKS GROUP', progress: 100 });
+            // Owner Bypass
+            if(email === OWNER_EMAIL) {
+                const ownerData = { email, name: 'SKS Owner', role: 'owner', company: 'SKS Head Office' };
+                await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(emailKey).set(ownerData, {merge:true});
+                loginSuccess(ownerData);
                 return;
             }
 
-            const whitelistDoc = await getWhitelistDoc().get();
-            const adminEmails = whitelistDoc.exists ? (whitelistDoc.data().adminEmails || []) : [];
-            const isAdminEmail = adminEmails.includes(email);
+            // Normal User
+            const docRef = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(emailKey);
+            const docSnap = await docRef.get();
 
-            const userDoc = await getPublicCollection('users').doc(emailKey).get();
-            if (userDoc.exists) {
-                const data = userDoc.data();
-                if (data.password === pass) {
-                    // Auto-sync role if whitelist updated
-                    if (isAdminEmail && data.role === 'trainee') {
-                        data.role = 'admin';
-                        await getPublicCollection('users').doc(emailKey).update({ role: 'admin' });
-                    }
-                    loginSuccess(data);
-                } else {
-                    document.getElementById('login-error').innerText = "รหัสผ่านไม่ถูกต้อง";
-                    document.getElementById('login-error').classList.remove('hidden');
-                }
+            if(docSnap.exists) {
+                loginSuccess(docSnap.data());
             } else {
-                // New Registration Flow
-                isPendingAdmin = isAdminEmail;
-                document.getElementById('reg-role-text').innerText = isPendingAdmin ? "ADMIN REGISTRATION" : "TRAINEE REGISTRATION";
-                document.getElementById('reg-company-dept').placeholder = isPendingAdmin ? "แผนก / ตำแหน่ง" : "บริษัทขนส่ง";
-                document.getElementById('login-view').classList.add('hidden');
-                document.getElementById('register-view').classList.remove('hidden');
+                toggleAuthMode('register');
             }
         };
 
@@ -173,290 +244,383 @@
             const data = {
                 email,
                 name: document.getElementById('reg-name').value,
-                company: document.getElementById('reg-company-dept').value,
-                password: document.getElementById('reg-pass').value,
-                role: isPendingAdmin ? 'admin' : 'trainee',
-                progress: 0,
-                joinedAt: new Date().toISOString()
+                company: document.getElementById('reg-company').value,
+                role: 'trainee',
+                joinedAt: new Date().toISOString(),
+                progress: {} // { curriculumId: { courseId: { score, passed: true } } }
             };
-            await getPublicCollection('users').doc(emailKey).set(data);
+            await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(emailKey).set(data);
             loginSuccess(data);
         };
 
         function loginSuccess(profile) {
-            currentProfile = profile;
-            document.getElementById('auth-container').classList.add('hidden');
+            userProfile = profile;
+            document.getElementById('auth-modal').classList.add('hidden');
             document.getElementById('app').classList.remove('hidden');
-            startListeners();
-            updateSidebar();
-            renderView('dashboard');
+            
+            document.getElementById('user-name-display').innerText = profile.name;
+            document.getElementById('user-role-display').innerText = profile.role;
+
+            setupNavigation();
+            startDataSync();
+            renderDashboard();
         }
 
-        function startListeners() {
-            getPublicCollection('courses').onSnapshot(s => {
-                courses = s.docs.map(d => ({id: d.id, ...d.data()}));
-                if(currentView === 'dashboard') renderDashboard();
+        function logout() {
+            window.location.reload();
+        }
+
+        // --- 4. DATA SYNC ---
+        function startDataSync() {
+            // Listen to Curriculums
+            db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('curriculums')
+                .onSnapshot(snap => {
+                    curriculums = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    // Refresh view if on dashboard
+                    if(document.getElementById('dashboard-view')) renderDashboard();
+                });
+
+            // Listen to Users (Admin/Owner only)
+            if(['admin', 'owner'].includes(userProfile.role)) {
+                db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users')
+                    .onSnapshot(snap => {
+                        allUsers = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                        if(document.getElementById('users-view')) renderUserManagement('trainee'); // Default tab
+                    });
+            }
+            
+            // Listen to Self (Trainee)
+            if(userProfile.role === 'trainee') {
+                const myKey = userProfile.email.replace(/[@.]/g, '_');
+                db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(myKey)
+                    .onSnapshot(snap => {
+                        if(snap.exists) {
+                            userProfile = snap.data();
+                            if(document.getElementById('dashboard-view')) renderDashboard();
+                        }
+                    });
+            }
+        }
+
+        // --- 5. UI RENDERING ---
+        function setupNavigation() {
+            const nav = document.getElementById('nav-menu');
+            let html = '';
+            
+            html += `<button onclick="renderDashboard()" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"><i class="fa-solid fa-house w-6 text-center"></i> หน้าหลัก</button>`;
+            
+            if(userProfile.role === 'owner') {
+                html += `<button onclick="renderCurriculumBuilder()" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"><i class="fa-solid fa-plus-circle w-6 text-center"></i> สร้างหลักสูตร</button>`;
+            }
+            
+            if(['owner', 'admin'].includes(userProfile.role)) {
+                html += `<button onclick="renderUserManagement('trainee')" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"><i class="fa-solid fa-users-gear w-6 text-center"></i> จัดการข้อมูลบุคคล</button>`;
+            }
+
+            if(userProfile.role === 'trainee') {
+                html += `<button onclick="renderMyCertificates()" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"><i class="fa-solid fa-award w-6 text-center"></i> ใบรับรองของฉัน</button>`;
+            }
+
+            nav.innerHTML = html;
+        }
+
+        // --- VIEW: DASHBOARD ---
+        function renderDashboard() {
+            document.getElementById('page-header').innerText = "Dashboard - หลักสูตรการอบรม";
+            const container = document.getElementById('content-area');
+            container.id = 'dashboard-view';
+            
+            if(curriculums.length === 0) {
+                container.innerHTML = `<div class="p-10 text-center text-slate-400">ยังไม่มีหลักสูตรในระบบ</div>`;
+                return;
+            }
+
+            let html = `<div class="grid grid-cols-1 gap-8">`;
+            
+            curriculums.forEach(curr => {
+                // Calculate Progress
+                const totalCourses = curr.courses ? curr.courses.length : 0;
+                let passedCount = 0;
+                if(userProfile.progress && userProfile.progress[curr.id]) {
+                    const myProg = userProfile.progress[curr.id];
+                    passedCount = Object.values(myProg).filter(p => p.passed).length;
+                }
+                const percent = totalCourses === 0 ? 0 : Math.round((passedCount / totalCourses) * 100);
+
+                html += `
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-800">${curr.title}</h3>
+                            <p class="text-sm text-slate-500">${curr.desc || 'ไม่มีรายละเอียด'}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-black ${percent === 100 ? 'text-green-600' : 'text-slate-700'}">${percent}%</div>
+                            <div class="text-[10px] uppercase font-bold text-slate-400">Complete</div>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-4">
+                `;
+
+                if(curr.courses && curr.courses.length > 0) {
+                    curr.courses.forEach((course, idx) => {
+                        const isPassed = userProfile.progress?.[curr.id]?.[idx]?.passed;
+                        html += `
+                        <div class="flex items-center justify-between p-4 rounded-xl border ${isPassed ? 'bg-green-50 border-green-200' : 'bg-white border-slate-100'}">
+                            <div class="flex items-center gap-4">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center ${isPassed ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}">
+                                    <i class="fa-solid ${isPassed ? 'fa-check' : 'fa-play'} text-sm"></i>
+                                </div>
+                                <span class="font-bold text-slate-700">${course.title}</span>
+                            </div>
+                            <button onclick="startCourse('${curr.id}', ${idx})" class="text-sm font-bold ${isPassed ? 'text-green-600' : 'text-blue-600 hover:underline'}">
+                                ${isPassed ? 'ทบทวน' : 'เริ่มเรียน'}
+                            </button>
+                        </div>`;
+                    });
+                } else {
+                    html += `<p class="text-center text-slate-400 text-sm italic">ยังไม่มีบทเรียนในหลักสูตรนี้</p>`;
+                }
+
+                // Certificate Button
+                if(percent === 100) {
+                    html += `
+                    <div class="mt-4 pt-4 border-t border-dashed border-slate-200 text-center">
+                        <button onclick="printCertificate('${curr.title}')" class="bg-slate-900 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg hover:bg-black transition">
+                            <i class="fa-solid fa-print mr-2"></i> พิมพ์ใบรับรอง (Certificate)
+                        </button>
+                    </div>`;
+                }
+
+                html += `</div></div>`;
+            });
+            
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // --- VIEW: COURSE BUILDER (Owner Only) ---
+        let draftCurriculum = { title: '', desc: '', courses: [] };
+        
+        function renderCurriculumBuilder() {
+            document.getElementById('page-header').innerText = "สร้างหลักสูตรใหม่";
+            const container = document.getElementById('content-area');
+            container.innerHTML = `
+                <div class="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-lg mb-6 border-l-4 border-red-600 pl-3">รายละเอียดหลักสูตร</h3>
+                    <div class="space-y-4 mb-8">
+                        <input id="build-title" placeholder="ชื่อหลักสูตร (เช่น ความปลอดภัยเบื้องต้น)" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:border-red-500">
+                        <textarea id="build-desc" placeholder="รายละเอียด..." class="w-full p-3 bg-slate-50 border rounded-xl outline-none h-20"></textarea>
+                    </div>
+
+                    <div id="course-list-builder" class="space-y-4 mb-6">
+                        <!-- รายการบทเรียนที่เพิ่มแล้ว -->
+                    </div>
+
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
+                        <h4 class="font-bold text-sm mb-4 text-slate-600"><i class="fa-solid fa-plus-circle"></i> เพิ่มบทเรียนย่อย (Course)</h4>
+                        <div class="space-y-3">
+                            <input id="c-title" placeholder="ชื่อบทเรียนย่อย" class="w-full p-2 border rounded-lg">
+                            <input id="c-video" placeholder="Youtube Video ID (เช่น dQw4w9WgXcQ)" class="w-full p-2 border rounded-lg">
+                            <div class="flex gap-2">
+                                <input id="c-q" placeholder="คำถามทดสอบ (1 ข้อ)" class="flex-1 p-2 border rounded-lg">
+                                <select id="c-ans" class="p-2 border rounded-lg"><option value="0">ใช่/ถูก</option><option value="1">ไม่ใช่/ผิด</option></select>
+                            </div>
+                            <button onclick="addCourseToDraft()" class="w-full bg-slate-200 text-slate-600 py-2 rounded-lg font-bold hover:bg-slate-300 text-sm">เพิ่มบทเรียนนี้ลงในหลักสูตร</button>
+                        </div>
+                    </div>
+
+                    <button onclick="saveCurriculum()" class="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg">บันทึกหลักสูตรทั้งหมด</button>
+                </div>
+            `;
+        }
+
+        function addCourseToDraft() {
+            const title = document.getElementById('c-title').value;
+            const videoId = document.getElementById('c-video').value;
+            const q = document.getElementById('c-q').value;
+            const ans = document.getElementById('c-ans').value;
+
+            if(!title || !videoId || !q) return alert("กรุณากรอกข้อมูลบทเรียนให้ครบ");
+
+            draftCurriculum.courses.push({
+                title, videoId, 
+                questions: [{ q, options: ["ใช่/ถูก", "ไม่ใช่/ผิด"], a: parseInt(ans) }]
             });
 
-            if (['admin', 'owner'].includes(currentProfile.role)) {
-                getPublicCollection('users').onSnapshot(s => {
-                    allUsers = s.docs.map(d => ({id: d.id, ...d.data()}));
-                    if(currentView === 'users') renderUsers();
-                    if(currentView === 'analytics') renderAnalytics();
-                });
-                getWhitelistDoc().onSnapshot(s => {
-                    whitelist = s.exists ? (s.data().adminEmails || []) : [];
-                    if(currentView === 'users' && currentProfile.role === 'owner') renderUsers();
-                });
-            }
-        }
-
-        // --- UI CORE ---
-        function updateSidebar() {
-            const nav = document.getElementById('main-nav');
-            const r = currentProfile.role;
-            document.getElementById('user-role-label').innerText = r;
-            document.getElementById('user-name-label').innerText = currentProfile.name;
-
-            let h = `<button onclick="renderView('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-3 p-3 rounded-xl transition hover:bg-slate-800"><i class="fa-solid fa-house w-6 text-center"></i> <span class="hidden md:block">หน้าแรก</span></button>`;
+            // Clear inputs
+            document.getElementById('c-title').value = '';
+            document.getElementById('c-video').value = '';
+            document.getElementById('c-q').value = '';
             
-            if (r === 'owner') h += `<button onclick="renderView('builder')" id="nav-builder" class="nav-btn w-full flex items-center gap-3 p-3 rounded-xl transition hover:bg-slate-800"><i class="fa-solid fa-plus w-6 text-center"></i> <span class="hidden md:block">สร้างบทเรียน</span></button>`;
-            
-            if (['owner', 'admin'].includes(r)) {
-                h += `<button onclick="renderView('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center gap-3 p-3 rounded-xl transition hover:bg-slate-800"><i class="fa-solid fa-chart-simple w-6 text-center"></i> <span class="hidden md:block">Analytics</span></button>`;
-                h += `<button onclick="renderView('users')" id="nav-users" class="nav-btn w-full flex items-center gap-3 p-3 rounded-xl transition hover:bg-slate-800"><i class="fa-solid fa-users-gear w-6 text-center"></i> <span class="hidden md:block">จัดการผู้ใช้</span></button>`;
-            }
-            nav.innerHTML = h;
+            renderDraftList();
         }
 
-        function renderView(view) {
-            currentView = view;
-            const container = document.getElementById('content-area');
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-link'));
-            if(document.getElementById(`nav-${view}`)) document.getElementById(`nav-${view}`).classList.add('active-link');
-
-            if(view === 'dashboard') renderDashboard();
-            else if(view === 'builder') renderBuilder();
-            else if(view === 'users') renderUsers();
-            else if(view === 'analytics') renderAnalytics();
-        }
-
-        // --- DASHBOARD & SHUFFLE LOGIC ---
-        function shuffleArray(array) {
-            const arr = [...array];
-            for (let i = arr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [arr[i], arr[j]] = [arr[j], arr[i]];
-            }
-            return arr;
-        }
-
-        function renderDashboard() {
-            const container = document.getElementById('content-area');
-            const cards = courses.map(c => `
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 card-hover group">
-                    <div class="h-32 bg-slate-900 rounded-2xl mb-4 flex items-center justify-center text-red-500"><i class="fa-solid fa-play text-3xl"></i></div>
-                    <div class="flex justify-between items-start mb-2">
-                        <h3 class="font-bold text-slate-800">${c.title}</h3>
-                        ${currentProfile.role === 'owner' ? `<button onclick="deleteCourse('${c.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>` : ''}
-                    </div>
-                    <button onclick="startLesson('${c.id}')" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-xs mt-2 hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest">Start Course</button>
+        function renderDraftList() {
+            const div = document.getElementById('course-list-builder');
+            div.innerHTML = draftCurriculum.courses.map((c, i) => `
+                <div class="flex justify-between items-center bg-white p-3 border rounded-lg shadow-sm">
+                    <span class="font-bold text-sm">Ep.${i+1} ${c.title}</span>
+                    <button onclick="draftCurriculum.courses.splice(${i},1); renderDraftList()" class="text-red-500 text-xs"><i class="fa-solid fa-trash"></i></button>
                 </div>
             `).join('');
-
-            container.innerHTML = `
-                <div class="max-w-6xl mx-auto animate-fade">
-                    <h2 class="font-black text-2xl mb-6 italic border-l-4 border-red-600 pl-4 uppercase">SKS Training Modules</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">${cards || '<p>No courses.</p>'}</div>
-                </div>`;
         }
 
-        function startLesson(id) {
-            const c = courses.find(course => course.id === id);
-            if(!c) return;
+        async function saveCurriculum() {
+            draftCurriculum.title = document.getElementById('build-title').value;
+            draftCurriculum.desc = document.getElementById('build-desc').value;
+            
+            if(!draftCurriculum.title || draftCurriculum.courses.length === 0) return alert("กรุณาใส่ชื่อหลักสูตรและเพิ่มบทเรียนอย่างน้อย 1 บท");
 
-            // SHUFFLE QUESTIONS & OPTIONS
-            const shuffledQuestions = shuffleArray(c.questions || []).map(q => ({
-                ...q,
-                options: shuffleArray(q.options) // Also shuffle choices
-            }));
+            await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('curriculums').add(draftCurriculum);
+            draftCurriculum = { title: '', desc: '', courses: [] };
+            alert("สร้างหลักสูตรสำเร็จ!");
+            renderDashboard();
+        }
 
+        // --- VIEW: USER MANAGEMENT ---
+        function renderUserManagement(activeTab) {
+            document.getElementById('page-header').innerText = "จัดการข้อมูลบุคคล";
             const container = document.getElementById('content-area');
+            container.id = 'users-view';
+
+            const usersToShow = allUsers.filter(u => u.role === activeTab);
+
             container.innerHTML = `
-                <div class="max-w-4xl mx-auto animate-fade">
-                    <div class="bg-white p-8 rounded-[3rem] shadow-xl border-4 border-white">
-                        <h2 class="text-2xl font-black mb-4 uppercase italic text-red-600">${c.title}</h2>
-                        
-                        <!-- STEP 1: WATCH VIDEO -->
-                        <div id="video-step" class="mb-8">
-                            <div class="aspect-video bg-black rounded-3xl overflow-hidden mb-6 shadow-inner">
-                                <iframe class="w-full h-full" src="https://www.youtube.com/embed/${c.videoUrl.split('v=')[1] || c.videoUrl.split('/').pop()}" frameborder="0" allowfullscreen></iframe>
-                            </div>
-                            <div class="bg-blue-50 p-6 rounded-2xl flex items-center justify-between">
-                                <p class="text-sm font-bold text-blue-700">1. ดูคลิปวิดีโอให้จบเพื่อเปิดการทำข้อสอบ</p>
-                                <button onclick="document.getElementById('video-step').classList.add('hidden'); document.getElementById('quiz-step').classList.remove('hidden');" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold text-xs hover:shadow-lg">ฉันดูจบแล้ว</button>
-                            </div>
-                        </div>
-
-                        <!-- STEP 2: QUIZ -->
-                        <div id="quiz-step" class="hidden animate-fade">
-                            <h3 class="font-bold text-lg mb-4 italic text-slate-800 underline decoration-red-500">แบบทดสอบ (สุ่มลำดับข้อและตัวเลือก)</h3>
-                            <div class="space-y-8">
-                                ${shuffledQuestions.map((q, i) => `
-                                    <div class="p-6 bg-slate-50 rounded-2xl">
-                                        <p class="font-bold mb-4">${i+1}. ${q.question}</p>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            ${q.options.map(opt => `<button onclick="this.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('bg-red-600','text-white')); this.classList.add('bg-red-600','text-white');" class="text-left p-3 bg-white border rounded-xl text-xs font-medium hover:border-red-500 transition-colors">${opt}</button>`).join('')}
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <button onclick="alert('Submit Success! ระบบกำลังบันทึกคะแนน'); renderView('dashboard');" class="w-full bg-slate-900 text-white py-5 rounded-3xl font-black mt-10 uppercase tracking-widest shadow-xl">ส่งผลสอบ / รับ Certificate</button>
-                        </div>
+                <div class="max-w-6xl mx-auto">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-slate-300 mb-6">
+                        <button onclick="renderUserManagement('admin')" class="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 ${activeTab === 'admin' ? 'active-tab' : ''}">ADMINS</button>
+                        <button onclick="renderUserManagement('trainee')" class="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 ${activeTab === 'trainee' ? 'active-tab' : ''}">TRAINEES</button>
                     </div>
-                </div>`;
-        }
 
-        // --- COURSE BUILDER ---
-        let tempQ = [];
-        function renderBuilder() {
-            tempQ = [];
-            document.getElementById('content-area').innerHTML = `
-                <div class="max-w-4xl mx-auto animate-fade">
-                    <div class="bg-white p-10 rounded-[3rem] shadow-2xl border-b-8 border-red-600">
-                        <h2 class="text-3xl font-black italic mb-8">BUILD NEW COURSE</h2>
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <input id="c-title" placeholder="Course Title" class="p-4 bg-slate-100 rounded-2xl outline-none font-bold" />
-                            <input id="c-video" placeholder="YouTube Link (e.g. v=...)" class="p-4 bg-slate-100 rounded-2xl outline-none" />
+                    ${userProfile.role === 'owner' && activeTab === 'admin' ? `
+                        <div class="mb-6 flex gap-2">
+                            <input id="new-admin-email" placeholder="Email พนักงานที่ต้องการตั้งเป็น Admin" class="flex-1 p-3 border rounded-xl">
+                            <button onclick="addAdmin()" class="bg-slate-900 text-white px-6 rounded-xl font-bold">เพิ่ม Admin</button>
                         </div>
-                        <div class="bg-red-50 p-6 rounded-3xl mb-6">
-                            <h4 class="font-bold text-red-600 text-sm mb-4">ADD QUESTIONS</h4>
-                            <div id="q-list" class="space-y-2 mb-4"></div>
-                            <div class="bg-white p-4 rounded-2xl shadow-sm">
-                                <input id="q-text" placeholder="คำถาม" class="w-full mb-2 p-2 border-b font-bold outline-none" />
-                                <div class="grid grid-cols-2 gap-2"><input id="q-o1" placeholder="ถูก (A)" class="p-2 bg-green-50 rounded text-xs"/><input id="q-o2" placeholder="ผิด (B)" class="p-2 bg-slate-100 rounded text-xs"/><input id="q-o3" placeholder="ผิด (C)" class="p-2 bg-slate-100 rounded text-xs"/><input id="q-o4" placeholder="ผิด (D)" class="p-2 bg-slate-100 rounded text-xs"/></div>
-                                <button onclick="addQ()" class="w-full mt-3 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-bold">ADD TO LIST</button>
-                            </div>
-                        </div>
-                        <button onclick="saveCourse()" class="w-full bg-red-600 text-white py-5 rounded-[2.5rem] font-black shadow-xl hover:scale-[1.02] transition-transform">DEPLOY TO SYSTEM</button>
-                    </div>
-                </div>`;
-        }
+                    ` : ''}
 
-        function addQ() {
-            const txt = document.getElementById('q-text').value;
-            if(!txt) return;
-            tempQ.push({ question: txt, options: [document.getElementById('q-o1').value, document.getElementById('q-o2').value, document.getElementById('q-o3').value, document.getElementById('q-o4').value] });
-            document.getElementById('q-list').innerHTML = tempQ.map((q, i) => `<div class="bg-white p-3 rounded-xl text-xs font-bold border flex justify-between"><span>${i+1}. ${q.question}</span> <button onclick="tempQ.splice(${i},1); addQ();" class="text-red-500">x</button></div>`).join('');
-            document.getElementById('q-text').value = '';
-        }
-
-        async function saveCourse() {
-            const title = document.getElementById('c-title').value;
-            if(!title) return;
-            await getPublicCollection('courses').add({ title, videoUrl: document.getElementById('c-video').value, questions: tempQ, createdAt: new Date().toISOString() });
-            renderView('dashboard');
-        }
-
-        async function deleteCourse(id) {
-            if(confirm('ลบบทเรียน?')) await getPublicCollection('courses').doc(id).delete();
-        }
-
-        // --- USER MGMT & ANALYTICS ---
-        function renderUsers() {
-            const isOwner = currentProfile.role === 'owner';
-            const rows = allUsers.map(u => `
-                <tr class="border-b border-slate-50">
-                    <td class="p-4 text-sm"><div class="font-bold">${u.name}</div><div class="text-[10px] text-slate-400">${u.email}</div></td>
-                    <td class="p-4 text-xs font-bold text-slate-500">${u.company}</td>
-                    <td class="p-4"><span class="px-2 py-1 bg-slate-100 text-[10px] font-black rounded uppercase">${u.role}</span></td>
-                    <td class="p-4 text-right">
-                        ${isOwner && u.role !== 'owner' ? `<button onclick="deleteUser('${u.email.replace(/[@.]/g, '_')}')" class="text-slate-300 hover:text-red-600 transition-colors"><i class="fa-solid fa-trash-can"></i></button>` : ''}
-                    </td>
-                </tr>
-            `).join('');
-
-            document.getElementById('content-area').innerHTML = `
-                <div class="max-w-6xl mx-auto animate-fade">
-                    ${isOwner ? `
-                        <div class="bg-slate-900 text-white p-6 rounded-3xl mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div><h3 class="font-black italic text-yellow-400">ADMIN WHITELIST</h3><p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">OWNER ACCESS ONLY</p></div>
-                            <div class="flex gap-2 w-full md:w-auto"><input id="new-admin" placeholder="admin@email.com" class="text-slate-900 px-4 py-2 rounded-xl text-sm w-full" /><button onclick="addAdmin()" class="bg-yellow-400 text-slate-900 px-6 py-2 rounded-xl font-bold text-xs">ADD</button></div>
-                            <div class="flex flex-wrap gap-1">${whitelist.map(e => `<span class="bg-slate-800 px-2 py-1 rounded text-[10px]">${e} <button onclick="removeAdmin('${e}')" class="text-red-500 ml-1">x</button></span>`).join('')}</div>
-                        </div>` : ''}
-                    <h2 class="text-2xl font-black italic mb-6 border-l-4 border-slate-900 pl-4">PERSONNEL DATABASE</h2>
-                    <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <table class="w-full text-left">
-                            <thead class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><tr><th class="p-4">Name/Email</th><th class="p-4">Dept/Company</th><th class="p-4">Role</th><th class="p-4 text-right">Action</th></tr></thead>
-                            <tbody>${rows}</tbody>
+                            <thead class="bg-slate-50 border-b">
+                                <tr>
+                                    <th class="p-4 text-xs font-bold text-slate-500 uppercase">ชื่อ-นามสกุล</th>
+                                    <th class="p-4 text-xs font-bold text-slate-500 uppercase">บริษัท</th>
+                                    <th class="p-4 text-xs font-bold text-slate-500 uppercase">อีเมล</th>
+                                    ${activeTab === 'trainee' ? '<th class="p-4 text-xs font-bold text-slate-500 uppercase text-center">ผ่านแล้ว (หลักสูตร)</th>' : ''}
+                                    <th class="p-4 text-right"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${usersToShow.map(u => `
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-4 font-bold text-slate-700">${u.name}</td>
+                                        <td class="p-4 text-sm text-slate-500">${u.company}</td>
+                                        <td class="p-4 text-sm text-slate-500 font-mono">${u.email}</td>
+                                        ${activeTab === 'trainee' ? `<td class="p-4 text-center font-bold text-green-600">${countPassed(u)}</td>` : ''}
+                                        <td class="p-4 text-right">
+                                            <button onclick="removeUser('${u.id}')" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
                         </table>
                     </div>
-                </div>`;
+                </div>
+            `;
         }
 
-        async function deleteUser(key) {
-            if(confirm('ยืนยันการลบผู้ใช้? ข้อมูลทั้งหมดรวมถึงประวัติการเรียนจะถูกลบถาวร')) {
-                await getPublicCollection('users').doc(key).delete();
-            }
+        function countPassed(u) {
+            if(!u.progress) return 0;
+            // Logic นับจำนวนหลักสูตรที่ครบ 100%
+            return Object.keys(u.progress).length; // เบื้องต้นนับจำนวนหลักสูตรที่มี record
         }
 
         async function addAdmin() {
-            const e = document.getElementById('new-admin').value.trim().toLowerCase();
-            if(!e) return;
-            const docRef = getWhitelistDoc();
-            const doc = await docRef.get();
-            let list = doc.exists ? (doc.data().adminEmails || []) : [];
-            if(!list.includes(e)) {
-                list.push(e);
-                await docRef.set({ adminEmails: list }, { merge: true });
-            }
-            document.getElementById('new-admin').value = '';
+            const email = document.getElementById('new-admin-email').value.trim().toLowerCase();
+            if(!email) return;
+            const key = email.replace(/[@.]/g, '_');
+            await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(key).set({
+                email, name: 'Admin User', role: 'admin', company: 'SKS Admin', joinedAt: new Date().toISOString()
+            });
+            renderUserManagement('admin');
         }
 
-        async function removeAdmin(e) {
-            const docRef = getWhitelistDoc();
-            const doc = await docRef.get();
-            if(doc.exists) {
-                let list = (doc.data().adminEmails || []).filter(mail => mail !== e);
-                await docRef.set({ adminEmails: list }, { merge: true });
+        async function removeUser(id) {
+            if(confirm("ยืนยันลบผู้ใช้นี้?")) {
+                await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(id).delete();
             }
         }
 
-        function renderAnalytics() {
-            const comps = [...new Set(allUsers.filter(u => u.role === 'trainee').map(u => u.company))].filter(Boolean);
-            document.getElementById('content-area').innerHTML = `
-                <div class="max-w-6xl mx-auto animate-fade">
-                    <div class="flex justify-between items-end mb-8">
-                        <div><h2 class="text-3xl font-black italic">ANALYTICS</h2><p class="text-xs text-slate-400 font-bold uppercase">Performance Monitoring</p></div>
-                        <select id="c-filter" onchange="filterAna()" class="p-3 bg-white rounded-xl border-2 font-bold text-sm outline-none focus:border-red-600 transition-all">
-                            <option value="all">ทุกบริษัท (All Logistics Companies)</option>
-                            ${comps.map(c => `<option value="${c}">${c}</option>`).join('')}
-                        </select>
+        // --- LEARNING LOGIC ---
+        function startCourse(currId, courseIdx) {
+            const curr = curriculums.find(c => c.id === currId);
+            const course = curr.courses[courseIdx];
+            
+            document.getElementById('page-header').innerText = `บทเรียน: ${course.title}`;
+            const container = document.getElementById('content-area');
+            container.innerHTML = `
+                <div class="max-w-4xl mx-auto pb-10">
+                    <button onclick="renderDashboard()" class="mb-4 text-slate-400 font-bold hover:text-slate-800">← ย้อนกลับ</button>
+                    <div class="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl mb-8">
+                        <iframe class="w-full h-full" src="https://www.youtube.com/embed/${course.videoId}" frameborder="0" allowfullscreen></iframe>
                     </div>
-                    <div id="ana-body"></div>
-                </div>`;
-            filterAna();
-        }
-
-        function filterAna() {
-            const filter = document.getElementById('c-filter').value;
-            const targets = allUsers.filter(u => u.role === 'trainee' && (filter === 'all' || u.company === filter));
-            document.getElementById('ana-body').innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-slate-900 text-white p-8 rounded-[2rem] shadow-xl"><p class="text-xs font-bold opacity-60 mb-2">Total Trainees</p><h3 class="text-4xl font-black italic">${targets.length}</h3></div>
-                    <div class="bg-white p-8 rounded-[2rem] border border-slate-100"><p class="text-xs font-bold text-slate-400 mb-2">Average Completion</p><h3 class="text-4xl font-black text-red-600 italic">${targets.length ? Math.round(targets.reduce((a,u)=>a+(u.progress||0),0)/targets.length) : 0}%</h3></div>
-                    <div class="bg-white p-8 rounded-[2rem] border border-slate-100"><p class="text-xs font-bold text-slate-400 mb-2">Certified Drivers</p><h3 class="text-4xl font-black text-green-500 italic">${targets.filter(u=>(u.progress||0)>=100).length}</h3></div>
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border text-center">
+                        <h3 class="text-xl font-bold mb-4">คำถามท้ายบท</h3>
+                        <p class="text-lg font-medium text-slate-700 mb-6">${course.questions[0].q}</p>
+                        <div class="flex gap-4 justify-center">
+                            <button onclick="answerQuiz('${currId}', ${courseIdx}, 0)" class="bg-slate-100 hover:bg-slate-200 px-8 py-3 rounded-xl font-bold text-slate-700">ใช่ / ถูก</button>
+                            <button onclick="answerQuiz('${currId}', ${courseIdx}, 1)" class="bg-slate-100 hover:bg-slate-200 px-8 py-3 rounded-xl font-bold text-slate-700">ไม่ใช่ / ผิด</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-white rounded-[2rem] border shadow-xl overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-50 text-[10px] font-black text-slate-400 p-4"><tr><th class="p-5">Name</th><th class="p-5">Company</th><th class="p-5">Progress</th></tr></thead>
-                        <tbody>${targets.map(u => `<tr class="border-b"><td class="p-5 text-sm font-bold">${u.name}</td><td class="p-5 text-xs">${u.company}</td><td class="p-5 font-black text-red-600">${u.progress || 0}%</td></tr>`).join('')}</tbody>
-                    </table>
-                </div>`;
+            `;
         }
 
-        function logout() { window.location.reload(); }
+        async function answerQuiz(currId, courseIdx, ans) {
+            const curr = curriculums.find(c => c.id === currId);
+            const course = curr.courses[courseIdx];
+            const correctAns = parseInt(course.questions[0].a);
+
+            if(ans === correctAns) {
+                alert("ถูกต้อง! ผ่านบทเรียนนี้");
+                // Save Progress
+                const myKey = userProfile.email.replace(/[@.]/g, '_');
+                const updatePath = `progress.${currId}.${courseIdx}`;
+                await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(myKey).update({
+                    [updatePath]: { passed: true, date: new Date().toISOString() }
+                }).catch(async () => {
+                    // Create if not exists (for nested map issues)
+                    let newProg = userProfile.progress || {};
+                    if(!newProg[currId]) newProg[currId] = {};
+                    newProg[currId][courseIdx] = { passed: true, date: new Date().toISOString() };
+                    await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(myKey).update({ progress: newProg });
+                });
+                renderDashboard();
+            } else {
+                alert("คำตอบไม่ถูกต้อง กรุณาดูวิดีโอและลองใหม่อีกครั้ง");
+            }
+        }
+
+        // --- CERTIFICATE LOGIC ---
+        function printCertificate(courseTitle) {
+            document.getElementById('cert-name').innerText = userProfile.name;
+            document.getElementById('cert-company').innerText = userProfile.company;
+            document.getElementById('cert-course').innerText = courseTitle;
+            document.getElementById('cert-date').innerText = new Date().toLocaleDateString('th-TH');
+            document.getElementById('certificate-view').classList.remove('hidden');
+        }
+
+        function renderMyCertificates() {
+            // Re-use Dashboard but filter only completed
+            renderDashboard(); 
+            // In a real app, this would be a separate list view
+        }
+
+        // START
         init();
+
     </script>
 </body>
 </html>
