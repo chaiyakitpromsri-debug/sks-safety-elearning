@@ -22,6 +22,9 @@
             #certificate-view { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; display: flex !important; }
             .no-print { display: none !important; }
         }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -29,7 +32,7 @@
     <!-- Loading Screen -->
     <div id="loading-screen" class="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center text-white">
         <i class="fa-solid fa-circle-notch fa-spin text-5xl text-red-600 mb-4"></i>
-        <p class="animate-pulse font-bold tracking-widest">CONNECTING SKS DATABASE...</p>
+        <p class="animate-pulse font-bold tracking-widest uppercase">Connecting to SKS Database...</p>
     </div>
 
     <!-- App Root -->
@@ -60,24 +63,20 @@
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden relative">
-            <!-- Top Bar -->
             <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10">
                 <h2 id="page-header" class="text-xl font-bold text-slate-800">หน้าหลัก</h2>
                 <div class="flex items-center gap-2 text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> SYSTEM ONLINE
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> System Online
                 </div>
             </header>
 
-            <!-- Content Container -->
             <div id="content-area" class="flex-1 overflow-y-auto p-8 custom-scrollbar"></div>
         </main>
     </div>
 
-    <!-- Certificate View (Hidden by default, used for print) -->
+    <!-- Certificate View -->
     <div id="certificate-view" class="hidden fixed inset-0 z-[100] bg-white flex-col items-center justify-center">
         <div class="border-[10px] border-double border-slate-800 p-10 w-[297mm] h-[210mm] relative flex flex-col items-center justify-between bg-white text-slate-900 shadow-2xl scale-[0.8] md:scale-100 origin-center">
-            
-            <!-- Header -->
             <div class="w-full flex justify-between items-start border-b-4 border-red-600 pb-4">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Isuzu_Motors_Logo.svg/2560px-Isuzu_Motors_Logo.svg.png" class="h-12 object-contain" alt="ISUZU Logo">
                 <div class="text-right">
@@ -85,19 +84,14 @@
                     <p class="text-sm font-bold text-slate-500 uppercase tracking-[0.3em]">Of Completion</p>
                 </div>
             </div>
-
-            <!-- Body -->
             <div class="text-center flex-1 flex flex-col justify-center gap-4">
                 <p class="text-xl text-slate-500 italic">This certifies that / ใบรับรองฉบับนี้มอบให้เพื่อแสดงว่า</p>
                 <h2 id="cert-name" class="text-5xl font-bold text-slate-900 border-b-2 border-slate-300 pb-2 px-10 inline-block min-w-[500px]"></h2>
                 <p id="cert-company" class="text-xl font-bold text-slate-600"></p>
-                
                 <p class="text-lg text-slate-500 mt-4">Has successfully completed the curriculum / ได้ผ่านหลักสูตร</p>
                 <h3 id="cert-course" class="text-3xl font-black text-red-600 uppercase"></h3>
                 <p class="text-slate-400 text-sm">Completed on: <span id="cert-date"></span></p>
             </div>
-
-            <!-- Footer -->
             <div class="w-full flex justify-around items-end pt-8">
                 <div class="text-center">
                     <div class="w-48 border-b-2 border-slate-800 mb-2"></div>
@@ -112,7 +106,6 @@
                 </div>
             </div>
         </div>
-        
         <div class="fixed bottom-10 left-1/2 -translate-x-1/2 no-print flex gap-4">
             <button onclick="window.print()" class="bg-slate-900 text-white px-8 py-3 rounded-full font-bold shadow-xl hover:bg-black transition"><i class="fa-solid fa-print"></i> พิมพ์ใบรับรอง</button>
             <button onclick="document.getElementById('certificate-view').classList.add('hidden')" class="bg-white text-slate-900 px-8 py-3 rounded-full font-bold shadow-xl hover:bg-slate-100 transition">ปิดหน้าต่าง</button>
@@ -123,18 +116,14 @@
     <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-red-600"></div>
-            
-            <!-- Login Form -->
             <div id="login-form-container">
                 <h2 class="text-2xl font-bold mb-2">ลงชื่อเข้าใช้งาน</h2>
                 <p class="text-slate-500 text-sm mb-6">สำหรับพนักงานและผู้ดูแลระบบ SKS Safety</p>
                 <form id="login-form" class="space-y-4">
-                    <input type="email" id="login-email" required placeholder="อีเมล (เช่น owner@sks.com)" class="w-full p-4 bg-slate-50 border rounded-xl outline-none focus:border-red-500 transition">
+                    <input type="email" id="login-email" required placeholder="อีเมล (เช่น user@sks.com)" class="w-full p-4 bg-slate-50 border rounded-xl outline-none focus:border-red-500 transition">
                     <button class="w-full bg-red-600 text-white py-4 rounded-xl font-bold hover:bg-red-700 transition shadow-lg">เข้าสู่ระบบ</button>
                 </form>
             </div>
-
-            <!-- Register Form -->
             <div id="register-form-container" class="hidden">
                 <h2 class="text-2xl font-bold mb-2">ลงทะเบียนพนักงาน</h2>
                 <p class="text-slate-500 text-sm mb-6">กรุณาระบุข้อมูลเพื่อเริ่มการอบรม</p>
@@ -148,51 +137,48 @@
         </div>
     </div>
 
-    <!-- React/Firebase Dependencies -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Firebase Library -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // --- 1. CONFIGURATION ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
+        // --- 1. CONFIGURATION (FIXED) ---
+        // ใส่ค่า API Key โดยตรงเพื่อให้ทำงานได้ทันที
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0VSrOyHI5YBEcJ69Kn8TUQpKtxO0b26w",
+            authDomain: "safety-e-learning-15c6e.firebaseapp.com",
+            projectId: "safety-e-learning-15c6e",
+            storageBucket: "safety-e-learning-15c6e.firebasestorage.app",
+            messagingSenderId: "382531903014",
+            appId: "1:382531903014:web:e256139500555a4145d0e7",
+            measurementId: "G-DDE8ZRSDEB"
         };
-        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'sks-safety-enterprise-final';
+        
+        const APP_ID = 'sks-safety-v4-main';
         const OWNER_EMAIL = 'owner@sks.com';
 
-        // Initialize Firebase
+        // Initialize
         try {
             firebase.initializeApp(firebaseConfig);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Firebase Init Error:", e); }
         
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // State
         let currentUser = null;
         let userProfile = null;
-        let curriculums = []; // หลักสูตร (ประกอบด้วยหลาย courses)
-        let allUsers = []; // Admin & Trainee list
-        
-        // --- 2. CORE SYSTEM ---
+        let curriculums = [];
+        let allUsers = [];
+
         async function init() {
             auth.onAuthStateChanged(async (user) => {
+                document.getElementById('loading-screen').classList.add('hidden');
                 if (user) {
                     currentUser = user;
-                    // Mock check if config fails in preview
-                    if(!firebaseConfig.apiKey) {
-                        alert("Firebase Config Missing: Please configure in Vercel/Code");
-                    }
                 } else {
-                    await auth.signInAnonymously().catch(e => console.log("Auth retry..."));
+                    await auth.signInAnonymously().catch(e => console.log("Login anonymous failed"));
                 }
-                
-                // Hide loader only when ready to show login
-                document.getElementById('loading-screen').classList.add('hidden');
                 if(!userProfile) showAuthModal();
             });
         }
@@ -212,13 +198,11 @@
             }
         }
 
-        // --- 3. AUTH LOGIC ---
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim().toLowerCase();
             const emailKey = email.replace(/[@.]/g, '_');
 
-            // Owner Bypass
             if(email === OWNER_EMAIL) {
                 const ownerData = { email, name: 'SKS Owner', role: 'owner', company: 'SKS Head Office' };
                 await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(emailKey).set(ownerData, {merge:true});
@@ -226,7 +210,6 @@
                 return;
             }
 
-            // Normal User
             const docRef = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(emailKey);
             const docSnap = await docRef.get();
 
@@ -247,7 +230,7 @@
                 company: document.getElementById('reg-company').value,
                 role: 'trainee',
                 joinedAt: new Date().toISOString(),
-                progress: {} // { curriculumId: { courseId: { score, passed: true } } }
+                progress: {}
             };
             await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(emailKey).set(data);
             loginSuccess(data);
@@ -338,7 +321,6 @@
             let html = `<div class="grid grid-cols-1 gap-8">`;
             
             curriculums.forEach(curr => {
-                // Calculate Progress
                 const totalCourses = curr.courses ? curr.courses.length : 0;
                 let passedCount = 0;
                 if(userProfile.progress && userProfile.progress[curr.id]) {
@@ -382,7 +364,6 @@
                     html += `<p class="text-center text-slate-400 text-sm italic">ยังไม่มีบทเรียนในหลักสูตรนี้</p>`;
                 }
 
-                // Certificate Button
                 if(percent === 100) {
                     html += `
                     <div class="mt-4 pt-4 border-t border-dashed border-slate-200 text-center">
@@ -413,9 +394,7 @@
                         <textarea id="build-desc" placeholder="รายละเอียด..." class="w-full p-3 bg-slate-50 border rounded-xl outline-none h-20"></textarea>
                     </div>
 
-                    <div id="course-list-builder" class="space-y-4 mb-6">
-                        <!-- รายการบทเรียนที่เพิ่มแล้ว -->
-                    </div>
+                    <div id="course-list-builder" class="space-y-4 mb-6"></div>
 
                     <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
                         <h4 class="font-bold text-sm mb-4 text-slate-600"><i class="fa-solid fa-plus-circle"></i> เพิ่มบทเรียนย่อย (Course)</h4>
@@ -448,7 +427,6 @@
                 questions: [{ q, options: ["ใช่/ถูก", "ไม่ใช่/ผิด"], a: parseInt(ans) }]
             });
 
-            // Clear inputs
             document.getElementById('c-title').value = '';
             document.getElementById('c-video').value = '';
             document.getElementById('c-q').value = '';
@@ -488,7 +466,6 @@
 
             container.innerHTML = `
                 <div class="max-w-6xl mx-auto">
-                    <!-- Tabs -->
                     <div class="flex border-b border-slate-300 mb-6">
                         <button onclick="renderUserManagement('admin')" class="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 ${activeTab === 'admin' ? 'active-tab' : ''}">ADMINS</button>
                         <button onclick="renderUserManagement('trainee')" class="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 ${activeTab === 'trainee' ? 'active-tab' : ''}">TRAINEES</button>
@@ -533,8 +510,7 @@
 
         function countPassed(u) {
             if(!u.progress) return 0;
-            // Logic นับจำนวนหลักสูตรที่ครบ 100%
-            return Object.keys(u.progress).length; // เบื้องต้นนับจำนวนหลักสูตรที่มี record
+            return Object.keys(u.progress).length; 
         }
 
         async function addAdmin() {
@@ -579,31 +555,29 @@
         }
 
         async function answerQuiz(currId, courseIdx, ans) {
-            const curr = curriculums.find(c => c.id === currId);
-            const course = curr.courses[courseIdx];
-            const correctAns = parseInt(course.questions[0].a);
-
-            if(ans === correctAns) {
+            const course = curriculums.find(c => c.id === currId).courses[courseIdx];
+            if(ans === parseInt(course.questions[0].a)) {
                 alert("ถูกต้อง! ผ่านบทเรียนนี้");
-                // Save Progress
                 const myKey = userProfile.email.replace(/[@.]/g, '_');
                 const updatePath = `progress.${currId}.${courseIdx}`;
-                await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(myKey).update({
-                    [updatePath]: { passed: true, date: new Date().toISOString() }
-                }).catch(async () => {
-                    // Create if not exists (for nested map issues)
-                    let newProg = userProfile.progress || {};
-                    if(!newProg[currId]) newProg[currId] = {};
-                    newProg[currId][courseIdx] = { passed: true, date: new Date().toISOString() };
-                    await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(myKey).update({ progress: newProg });
-                });
+                
+                // ใช้ set merge เพื่อสร้างโครงสร้าง nested ถ้ายังไม่มี
+                let updateData = {};
+                updateData[updatePath] = { passed: true, date: new Date().toISOString() };
+                
+                // ต้องใช้ท่านี้สำหรับ nested field ที่ dynamic ใน v8
+                let userDoc = await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(myKey).get();
+                let userData = userDoc.data();
+                if(!userData.progress) userData.progress = {};
+                if(!userData.progress[currId]) userData.progress[currId] = {};
+                userData.progress[currId][courseIdx] = { passed: true, date: new Date().toISOString() };
+                
+                await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('users').doc(myKey).update({ progress: userData.progress });
+                
                 renderDashboard();
-            } else {
-                alert("คำตอบไม่ถูกต้อง กรุณาดูวิดีโอและลองใหม่อีกครั้ง");
-            }
+            } else { alert("ผิด!"); }
         }
 
-        // --- CERTIFICATE LOGIC ---
         function printCertificate(courseTitle) {
             document.getElementById('cert-name').innerText = userProfile.name;
             document.getElementById('cert-company').innerText = userProfile.company;
@@ -612,13 +586,9 @@
             document.getElementById('certificate-view').classList.remove('hidden');
         }
 
-        function renderMyCertificates() {
-            // Re-use Dashboard but filter only completed
-            renderDashboard(); 
-            // In a real app, this would be a separate list view
-        }
+        function renderMyCertificates() { renderDashboard(); }
 
-        // START
+        // Start App
         init();
 
     </script>
