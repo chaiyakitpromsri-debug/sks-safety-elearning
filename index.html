@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKS Safety E-Learning V6 (Final Professional)</title>
+    <title>SKS Safety E-Learning V7 (Timer & Shuffle)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
@@ -22,10 +23,9 @@
         .btn-red { background-color: #dc2626; color: white; transition: all 0.2s; border: none; cursor: pointer; }
         .btn-red:hover { background-color: #b91c1c; }
         
-        /* 3. ปรับ UI ให้เป็นทางการ (Formal Look) ลดความโค้งมนลง */
-        .formal-card { border-radius: 0.75rem; /* rounded-xl */ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .formal-input { border-radius: 0.5rem; /* rounded-lg */ }
-        .formal-btn { border-radius: 0.5rem; /* rounded-lg */ }
+        .formal-card { border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .formal-input { border-radius: 0.5rem; }
+        .formal-btn { border-radius: 0.5rem; }
 
         @media print {
             .no-print { display: none !important; }
@@ -35,7 +35,7 @@
 
         .cert-bg {
             background: white;
-            border: 10px double #111827; /* ขอบทางการขึ้น */
+            border: 10px double #111827;
             position: relative;
         }
     </style>
@@ -69,7 +69,7 @@
             return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
         };
 
-        // --- FIREBASE CONFIG (ใส่ค่าเดิมของคุณ) ---
+        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyCTVPEG8h9T1OU7fv5nQyKifSC-vAyr1Bo",
             authDomain: "driver-training-program.firebaseapp.com",
@@ -94,10 +94,15 @@
             const [quizQuestions, setQuizQuestions] = useState([]);
             const [currentQ, setCurrentQ] = useState(0);
             const [userAnswers, setUserAnswers] = useState({});
+            const [timeLeft, setTimeLeft] = useState(0); // 1. Timer State
 
             // Admin States
             const [filters, setFilters] = useState({ name: '', company: '' });
-            const [editingCourse, setEditingCourse] = useState(null); // สำหรับสร้าง/แก้ไขคอร์ส
+            const [editingCourse, setEditingCourse] = useState(null);
+            
+            // 2. Admin Question Input State
+            const [tempQ, setTempQ] = useState({ q: '', options: ['', '', '', ''], a: 0 });
+            
             const fileInputRef = useRef(null);
 
             // Fetch Courses
@@ -109,7 +114,7 @@
                 return () => unsub();
             }, []);
 
-            // Fetch Users (Only if Admin)
+            // Fetch Users (Admin)
             useEffect(() => {
                 if (view && view.startsWith('admin_')) {
                     const unsub = db.collection('users').onSnapshot(snap => {
@@ -119,9 +124,25 @@
                 }
             }, [view]);
 
-            // 5. การจดจำ Login (เปลี่ยน Logic)
+            // 1. Timer Logic (Countdown)
+            useEffect(() => {
+                if (view === 'quiz' && timeLeft > 0) {
+                    const timerId = setInterval(() => {
+                        setTimeLeft(prev => {
+                            if (prev <= 1) {
+                                clearInterval(timerId);
+                                handleAutoSubmit(); // หมดเวลาส่งเลย
+                                return 0;
+                            }
+                            return prev - 1;
+                        });
+                    }, 1000);
+                    return () => clearInterval(timerId);
+                }
+            }, [timeLeft, view]);
+
             const checkSession = () => {
-                const savedId = localStorage.getItem('sks_user_id_v2'); // เปลี่ยน Key ใหม่เพื่อบังคับ Login ใหม่
+                const savedId = localStorage.getItem('sks_user_id_v2');
                 if (savedId) {
                     db.collection('users').doc(savedId).get().then(doc => {
                         if (doc.exists) {
@@ -144,7 +165,6 @@
                 setView('login'); 
             };
 
-            // 5. Login แบบผสม (ชื่อ + บริษัท) เพื่อป้องกันชื่อซ้ำ
             const handleLogin = async (e) => {
                 e.preventDefault();
                 const n = e.target.fname.value.trim();
@@ -152,10 +172,9 @@
                 const s = e.target.secret.value;
                 if (!n || !c) return;
 
-                // สร้าง ID จาก ชื่อ + บริษัท
                 const safeName = n.toLowerCase().replace(/\s/g, '_');
                 const safeCompany = c.toLowerCase().replace(/\s/g, '_');
-                const userId = `${safeName}_${safeCompany}`; // EX: somchai_sks_logistics
+                const userId = `${safeName}_${safeCompany}`;
 
                 const isAdmin = s === 'sks_admin_master';
                 const uRef = db.collection('users').doc(userId);
@@ -163,23 +182,15 @@
                 try {
                     const doc = await uRef.get();
                     if (!doc.exists) {
-                        await uRef.set({ 
-                            name: n, 
-                            company: c, 
-                            role: isAdmin ? 'admin' : 'user', 
-                            coursesStatus: {} 
-                        });
+                        await uRef.set({ name: n, company: c, role: isAdmin ? 'admin' : 'user', coursesStatus: {} });
                     } else if (isAdmin) {
-                         // อัปเดต role admin หาก login ด้วยรหัสลับ
                          await uRef.update({ role: 'admin' });
                     }
-                    localStorage.setItem('sks_user_id_v2', userId); // Save ID ใหม่
+                    localStorage.setItem('sks_user_id_v2', userId);
                     checkSession();
                 } catch (error) { alert("Login Error: " + error.message); }
             };
 
-            // --- CSV FUNCTIONS ---
-            // 4. แก้ไขปุ่มสลับกัน (อันนี้คือ Export ของจริง)
             const exportToCSV = (data) => {
                 const headers = ["Name", "Company", "Courses Status"];
                 const rows = data.map(u => {
@@ -200,7 +211,6 @@
                 document.body.removeChild(link);
             };
 
-            // 4. อันนี้คือ Import ของจริง
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -211,11 +221,9 @@
                     let successCount = 0;
                     const batch = db.batch();
                     let operationCount = 0;
-
                     lines.forEach((line) => {
                         const [rawName, rawCompany] = line.split(',').map(s => s?.trim()?.replace(/^"|"$/g, ''));
                         if (rawName && rawCompany && rawName !== "Name") {
-                            // ใช้ Logic เดียวกับ Login: ID = Name + Company
                             const uid = `${rawName.toLowerCase().replace(/\s/g, '_')}_${rawCompany.toLowerCase().replace(/\s/g, '_')}`;
                             const ref = db.collection('users').doc(uid);
                             batch.set(ref, { name: rawName, company: rawCompany, role: 'user' }, { merge: true });
@@ -223,7 +231,6 @@
                             successCount++;
                         }
                     });
-
                     if (operationCount > 0) {
                         await batch.commit();
                         alert(`Successfully imported ${successCount} users.`);
@@ -235,19 +242,36 @@
                 e.target.value = null;
             };
 
-            // --- ADMIN COURSE MANAGEMENT ---
+            // --- ADMIN COURSE MANAGEMENT (UPDATED) ---
+            
+            const handleAddQuestion = () => {
+                if (!tempQ.q || tempQ.options.some(o => !o)) return alert("Please fill all fields");
+                const updatedQuestions = [...(editingCourse?.questions || []), tempQ];
+                setEditingCourse({ ...editingCourse, questions: updatedQuestions });
+                setTempQ({ q: '', options: ['', '', '', ''], a: 0 }); // Reset form
+            };
+
+            const handleRemoveQuestion = (index) => {
+                const updatedQuestions = editingCourse.questions.filter((_, i) => i !== index);
+                setEditingCourse({ ...editingCourse, questions: updatedQuestions });
+            };
+
             const handleSaveCourse = async (e) => {
                 e.preventDefault();
                 const title = e.target.title.value;
                 const videoId = e.target.videoId.value;
-                const imageUrl = e.target.imageUrl.value; // 6. รับรูปภาพ
+                const imageUrl = e.target.imageUrl.value;
+                const timeLimit = parseInt(e.target.timeLimit.value) || 0; // 1. Save Time Limit
                 
+                if (!editingCourse?.questions?.length) return alert("Please add at least one question.");
+
                 const newCourse = {
                     titleTh: title,
                     videoId: videoId,
-                    imageUrl: imageUrl || '', // 6. บันทึกรูปภาพ
-                    passScore: 80, // Default
-                    questions: editingCourse?.questions || [] // Keep existing questions if editing
+                    imageUrl: imageUrl || '',
+                    timeLimit: timeLimit,
+                    passScore: 80,
+                    questions: editingCourse.questions
                 };
 
                 if (editingCourse?.id) {
@@ -259,11 +283,75 @@
                 setView('admin_courses');
             };
 
+            // --- QUIZ LOGIC (AUTO SUBMIT) ---
+            const handleAutoSubmit = async () => {
+                // Submit current state of answers
+                await submitQuiz(true);
+            };
+
+            const submitQuiz = async (isAuto = false) => {
+                let correct = 0;
+                quizQuestions.forEach((q, i) => { if(userAnswers[i] === q.a) correct++; });
+                const score = Math.round((correct / quizQuestions.length) * 100);
+                const pass = score >= (activeCourse?.passScore || 80);
+                const res = { status: pass?'Passed':'Failed', score, date: new Date().toLocaleDateString('th-TH') };
+                const newStatus = { ...user.coursesStatus, [activeCourse.id]: res };
+                
+                await db.collection('users').doc(user.id).update({ coursesStatus: newStatus });
+                setUser({...user, coursesStatus: newStatus}); 
+                
+                if(isAuto) alert("Time's up! Quiz submitted automatically.");
+                setView('result');
+            };
+
+            // 2. SHUFFLE LOGIC (Questions & Options)
+            const startQuiz = () => {
+                if(!activeCourse?.questions?.length) return alert("Course content is being updated.");
+                
+                // 1. Shuffle Questions
+                const shuffledQuestions = [...activeCourse.questions]
+                    .sort(() => Math.random() - 0.5)
+                    .map(q => {
+                        // 2. Shuffle Options for each question
+                        // Store original index to track correct answer
+                        const optionsWithIndex = q.options.map((opt, idx) => ({ opt, originalIdx: idx }));
+                        const shuffledOptions = optionsWithIndex.sort(() => Math.random() - 0.5);
+                        
+                        // Find where the correct answer moved to
+                        const newCorrectIndex = shuffledOptions.findIndex(item => item.originalIdx === q.a);
+                        
+                        return {
+                            q: q.q,
+                            options: shuffledOptions.map(item => item.opt), // New shuffled options array
+                            a: newCorrectIndex // New correct answer index
+                        };
+                    });
+
+                setQuizQuestions(shuffledQuestions);
+                setCurrentQ(0); 
+                setUserAnswers({});
+                
+                // Set Timer
+                if (activeCourse.timeLimit > 0) {
+                    setTimeLeft(activeCourse.timeLimit * 60); // Convert minutes to seconds
+                } else {
+                    setTimeLeft(0); // No limit
+                }
+                
+                setView('quiz');
+            };
+
+            // Helper to format time
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return `${m}:${s < 10 ? '0' : ''}${s}`;
+            };
+
             // --- VIEWS ---
 
             if (view === 'loading') return <div className="h-screen flex items-center justify-center font-bold text-slate-400 animate-pulse">SKS Loading...</div>;
 
-            // 7. Login ปรับให้พอดีมือถือ (p-6, w-full)
             if (view === 'login') return (
                 <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
                     <div className="bg-white formal-card w-full max-w-md overflow-hidden border border-slate-200">
@@ -287,9 +375,7 @@
                 </div>
             );
 
-            // --- USER DASHBOARD ---
             if (view === 'dashboard') {
-                // 1. คำนวณ Progress ของผู้เรียน
                 const totalCourses = courses.length;
                 const completedCourses = courses.filter(c => user.coursesStatus?.[c.id]?.status === 'Passed').length;
                 const progressPercent = totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0;
@@ -305,7 +391,6 @@
                         </header>
                         
                         <main className="max-w-5xl mx-auto p-4 md:p-8">
-                            {/* 1. Dashboard ส่วนตัว User */}
                             <div className="bg-white formal-card p-6 mb-8 border-l-4 border-sks-red flex flex-col md:flex-row justify-between items-center gap-6">
                                 <div>
                                     <h2 className="text-2xl font-bold text-slate-800">Welcome, {user.name}</h2>
@@ -328,7 +413,6 @@
                                     const isPassed = s?.status === 'Passed';
                                     return (
                                         <div key={course.id} className="bg-white formal-card overflow-hidden flex flex-col group hover:shadow-lg transition-all border border-slate-100">
-                                            {/* 6. แสดงรูปภาพ Course */}
                                             <div className="h-40 bg-slate-200 relative overflow-hidden">
                                                 {course.imageUrl ? 
                                                     <img src={course.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> 
@@ -373,17 +457,16 @@
                             ) : <div className="w-full h-full flex items-center justify-center text-white opacity-20">Video Not Available</div>}
                         </div>
                         <div className="text-center">
-                            <button onClick={() => {
-                                if(!activeCourse?.questions?.length) return alert("Course content is being updated.");
-                                setQuizQuestions([...activeCourse.questions].sort(() => Math.random() - 0.5));
-                                setCurrentQ(0); setUserAnswers({}); setView('quiz');
-                            }} className="formal-btn btn-red px-10 py-4 font-bold text-lg uppercase tracking-widest shadow-lg">Start Exam</button>
+                            <div className="mb-4 text-slate-500 text-sm">
+                                {activeCourse.timeLimit > 0 ? `Time Limit: ${activeCourse.timeLimit} Minutes` : 'No Time Limit'}
+                            </div>
+                            {/* 2. Start Quiz triggers Shuffle & Timer */}
+                            <button onClick={startQuiz} className="formal-btn btn-red px-10 py-4 font-bold text-lg uppercase tracking-widest shadow-lg">Start Exam</button>
                         </div>
                     </main>
                 </div>
             );
 
-            // --- QUIZ & RESULT (Minimal UI Changes) ---
             if (view === 'quiz') {
                 const q = quizQuestions[currentQ];
                 return (
@@ -391,7 +474,11 @@
                         <div className="bg-white p-8 w-full max-w-3xl formal-card relative">
                             <div className="flex justify-between items-center mb-8 border-b pb-4">
                                 <span className="font-bold text-sks-red text-xl uppercase">Exam</span>
-                                <span className="font-bold text-slate-400 text-xs tracking-widest">Q: {currentQ + 1} / {quizQuestions.length}</span>
+                                <div className="text-right">
+                                    <span className="font-bold text-slate-400 text-xs tracking-widest block">Q: {currentQ + 1} / {quizQuestions.length}</span>
+                                    {/* 1. Timer Display */}
+                                    {activeCourse.timeLimit > 0 && <span className={`font-black text-lg ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-slate-800'}`}>{formatTime(timeLeft)}</span>}
+                                </div>
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 mb-8">{q?.q}</h3>
                             <div className="grid grid-cols-1 gap-4 mb-8">
@@ -406,16 +493,7 @@
                                 {currentQ < quizQuestions.length - 1 ? (
                                     <button disabled={userAnswers[currentQ] === undefined} onClick={() => setCurrentQ(currentQ + 1)} className="bg-black text-white px-8 py-3 formal-btn font-bold uppercase text-xs disabled:opacity-20">Next</button>
                                 ) : (
-                                    <button disabled={userAnswers[currentQ] === undefined} onClick={async () => {
-                                        let correct = 0;
-                                        quizQuestions.forEach((q, i) => { if(userAnswers[i] === q.a) correct++; });
-                                        const score = Math.round((correct / quizQuestions.length) * 100);
-                                        const pass = score >= (activeCourse?.passScore || 80);
-                                        const res = { status: pass?'Passed':'Failed', score, date: new Date().toLocaleDateString('th-TH') };
-                                        const newStatus = { ...user.coursesStatus, [activeCourse.id]: res };
-                                        await db.collection('users').doc(user.id).update({ coursesStatus: newStatus });
-                                        setUser({...user, coursesStatus: newStatus}); setView('result');
-                                    }} className="btn-red px-8 py-3 formal-btn font-bold uppercase text-xs">Submit</button>
+                                    <button disabled={userAnswers[currentQ] === undefined} onClick={() => submitQuiz(false)} className="btn-red px-8 py-3 formal-btn font-bold uppercase text-xs">Submit</button>
                                 )}
                             </div>
                         </div>
@@ -455,7 +533,6 @@
                 </nav>
             );
             
-            // Mobile Admin Nav
             const MobileAdminNav = () => (
                 <div className="md:hidden bg-black text-white p-4 flex justify-between items-center sticky top-0 z-50">
                     <span className="font-bold uppercase">SKS Admin</span>
@@ -469,17 +546,12 @@
             );
 
             if (view === 'admin_dashboard') {
-                // 2. คำนวณสถิติ Admin Dashboard
                 const trainees = allUsers.filter(u => u.role !== 'admin');
                 const totalTrainees = trainees.length;
-                
-                // Group by Company
                 const companyStats = {};
                 trainees.forEach(u => {
                     if (!companyStats[u.company]) companyStats[u.company] = { total: 0, passedAll: 0 };
                     companyStats[u.company].total++;
-                    
-                    // Check if passed all courses
                     const passedCount = courses.filter(c => u.coursesStatus?.[c.id]?.status === 'Passed').length;
                     if (courses.length > 0 && passedCount === courses.length) {
                         companyStats[u.company].passedAll++;
@@ -491,7 +563,6 @@
                         <AdminNav /><MobileAdminNav />
                         <main className="flex-1 p-6 md:p-12 overflow-y-auto">
                             <h2 className="text-3xl font-bold text-slate-800 mb-8">System Overview</h2>
-                            
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                                 <div className="bg-white p-8 formal-card border-l-4 border-black">
                                     <p className="text-xs font-bold text-slate-400 uppercase mb-2">Total Trainees</p>
@@ -502,7 +573,6 @@
                                     <h3 className="text-5xl font-black text-sks-red">{courses.length}</h3>
                                 </div>
                             </div>
-
                             <h3 className="text-xl font-bold text-slate-800 mb-6">Company Breakdown</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {Object.entries(companyStats).map(([company, stats]) => (
@@ -542,7 +612,6 @@
                                 <h2 className="text-3xl font-bold text-slate-800">Trainee Report</h2>
                                 <div className="flex gap-3">
                                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv,.txt" style={{display:'none'}} />
-                                    {/* 4. สลับปุ่ม Import/Export ให้ถูกต้อง */}
                                     <button onClick={() => fileInputRef.current.click()} className="bg-white text-slate-700 border border-slate-300 px-4 py-2 rounded-lg font-bold text-xs uppercase hover:bg-slate-50 flex items-center gap-2">
                                         <Icon name="upload" size={14}/> Import CSV
                                     </button>
@@ -551,12 +620,10 @@
                                     </button>
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 <input placeholder="Filter by Name" className="formal-input p-3 border" value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})}/>
                                 <input placeholder="Filter by Company" className="formal-input p-3 border" value={filters.company} onChange={e => setFilters({...filters, company: e.target.value})}/>
                             </div>
-
                             <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-slate-50 border-b border-slate-200">
@@ -604,14 +671,46 @@
                                 <h3 className="font-bold text-lg mb-4">{editingCourse ? 'Edit Course' : 'Create New Course'}</h3>
                                 <form onSubmit={handleSaveCourse} className="space-y-4">
                                     <input name="title" defaultValue={editingCourse?.titleTh} placeholder="Course Title" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="YouTube Video ID (e.g. dQw4w9WgXcQ)" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
-                                        {/* 6. ช่องใส่รูปภาพ */}
-                                        <input name="imageUrl" defaultValue={editingCourse?.imageUrl} placeholder="Cover Image URL (Optional)" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="YouTube Video ID" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                        <input name="imageUrl" defaultValue={editingCourse?.imageUrl} placeholder="Cover Image URL" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                        {/* 1. Timer Input */}
+                                        <input name="timeLimit" type="number" defaultValue={editingCourse?.timeLimit || 0} placeholder="Time Limit (Minutes) - 0 = No Limit" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
                                     </div>
-                                    <div className="flex gap-2">
+
+                                    {/* 2. Question Management Section */}
+                                    <div className="border-t pt-4 mt-4">
+                                        <h4 className="font-bold text-sm mb-4">Questions ({editingCourse?.questions?.length || 0})</h4>
+                                        <div className="bg-slate-50 p-4 rounded-lg space-y-3 mb-4 border border-slate-200">
+                                            <input value={tempQ.q} onChange={e => setTempQ({...tempQ, q: e.target.value})} placeholder="Question Text" className="formal-input w-full p-3 border"/>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {tempQ.options.map((opt, i) => (
+                                                    <input key={i} value={opt} onChange={e => {
+                                                        const newOpts = [...tempQ.options];
+                                                        newOpts[i] = e.target.value;
+                                                        setTempQ({...tempQ, options: newOpts});
+                                                    }} placeholder={`Option ${i+1}`} className="formal-input w-full p-3 border"/>
+                                                ))}
+                                            </div>
+                                            <select value={tempQ.a} onChange={e => setTempQ({...tempQ, a: parseInt(e.target.value)})} className="formal-input w-full p-3 border">
+                                                {tempQ.options.map((_, i) => <option key={i} value={i}>Correct Answer: Option {i+1}</option>)}
+                                            </select>
+                                            <button type="button" onClick={handleAddQuestion} className="formal-btn bg-slate-800 text-white w-full py-2 text-xs font-bold uppercase">Add Question</button>
+                                        </div>
+
+                                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                                            {editingCourse?.questions?.map((q, i) => (
+                                                <div key={i} className="flex justify-between items-center p-3 bg-white border rounded text-sm">
+                                                    <span className="truncate w-3/4">{i+1}. {q.q}</span>
+                                                    <button type="button" onClick={() => handleRemoveQuestion(i)} className="text-red-500"><Icon name="trash-2" size={14}/></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2 border-t pt-4">
                                         <button type="submit" className="formal-btn bg-black text-white px-6 py-2 font-bold text-xs uppercase">Save Course</button>
-                                        {editingCourse && <button onClick={() => setEditingCourse(null)} type="button" className="formal-btn bg-slate-200 text-slate-600 px-6 py-2 font-bold text-xs uppercase">Cancel</button>}
+                                        {editingCourse && <button onClick={() => { setEditingCourse(null); setTempQ({q:'', options:['','','',''], a:0}); }} type="button" className="formal-btn bg-slate-200 text-slate-600 px-6 py-2 font-bold text-xs uppercase">Cancel</button>}
                                     </div>
                                 </form>
                             </div>
@@ -620,13 +719,12 @@
                                 {courses.map(c => (
                                     <div key={c.id} className="bg-white p-6 formal-card flex justify-between items-center group">
                                         <div className="flex gap-4 items-center">
-                                            {/* Preview รูปเล็กๆ */}
                                             <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
                                                 {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Icon name="image" size={20}/></div>}
                                             </div>
                                             <div>
                                                 <h4 className="font-bold text-md">{c.titleTh}</h4>
-                                                <p className="text-xs text-slate-400">ID: {c.videoId}</p>
+                                                <p className="text-xs text-slate-400">Time: {c.timeLimit ? c.timeLimit + 'm' : 'Unlimited'} | Q: {c.questions?.length}</p>
                                             </div>
                                         </div>
                                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
