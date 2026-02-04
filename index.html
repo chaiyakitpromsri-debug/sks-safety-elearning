@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKS Safety E-Learning V9 (Multi-Source Video & Delete)</title>
+    <title>SKS Safety E-Learning</title>
     
+    <!-- ส่วนแก้ปัญหา LOGO บนแท็บเบราว์เซอร์ (Favicon) -->
+    <!-- ให้คุณนำ URL รูปภาพโลโก้มาใส่ใน href ด้านล่างนี้แทนที่ placeholder -->
+    <link rel="icon" type="image/png" href="https://via.placeholder.com/32x32?text=SKS">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/180x180?text=SKS">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
@@ -273,11 +278,13 @@
                 setView('admin_courses');
             };
 
-            // ADDED: ฟังก์ชันลบหลักสูตร
+            // แก้ไขจุดที่ 1: ฟังก์ชันลบ Course แบบสมบูรณ์
             const handleDeleteCourse = async (courseId) => {
-                if(confirm('ยืนยันการลบหลักสูตรนี้ใช่หรือไม่? ข้อมูลคะแนนของผู้เรียนในหลักสูตรนี้จะไม่สามารถเรียกคืนได้')) {
+                if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบหลักสูตรนี้? ข้อมูลคะแนนทั้งหมดจะหายไป')) {
                     try {
                         await db.collection('courses').doc(courseId).delete();
+                        alert('ลบหลักสูตรเรียบร้อยแล้ว');
+                        // เมื่อลบสำเร็จ Firestore onSnapshot จะอัปเดต state courses ให้อัตโนมัติ
                     } catch (error) {
                         alert("เกิดข้อผิดพลาดในการลบ: " + error.message);
                     }
@@ -339,8 +346,35 @@
                 }
             };
 
-            // --- VIEWS ---
+            // --- NAVIGATION ---
+            const AdminNav = () => (
+                <nav className="w-64 bg-black text-white p-6 flex flex-col border-r border-slate-800 no-print hidden md:flex">
+                    <div className="flex items-center gap-3 mb-10">
+                        <div className="w-8 h-8 bg-sks-red rounded flex items-center justify-center font-bold italic text-sm">S</div>
+                        <h2 className="font-bold text-lg tracking-tight uppercase">Admin Panel</h2>
+                    </div>
+                    <div className="space-y-2 flex-1">
+                        <button onClick={() => setView('admin_dashboard')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_dashboard'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="layout-dashboard" size={16}/> Dashboard</button>
+                        <button onClick={() => setView('admin_report')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_report'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="users" size={16}/> Trainees</button>
+                        <button onClick={() => setView('admin_courses')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_courses'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="book-open" size={16}/> Courses</button>
+                    </div>
+                    <button onClick={logout} className="p-3 font-bold text-xs text-sks-red flex items-center gap-3 hover:bg-slate-900 rounded-lg"><Icon name="log-out" size={16}/> Logout</button>
+                </nav>
+            );
 
+            const MobileAdminNav = () => (
+                <div className="md:hidden bg-black text-white p-4 flex justify-between items-center sticky top-0 z-50">
+                    <span className="font-bold uppercase">SKS Admin</span>
+                    <div className="flex gap-4">
+                        <button onClick={() => setView('admin_dashboard')}><Icon name="layout-dashboard" size={20}/></button>
+                        <button onClick={() => setView('admin_report')}><Icon name="users" size={20}/></button>
+                        <button onClick={() => setView('admin_courses')}><Icon name="book-open" size={20}/></button>
+                        <button onClick={logout} className="text-sks-red"><Icon name="log-out" size={20}/></button>
+                    </div>
+                </div>
+            );
+
+            // --- VIEWS ---
             if (view === 'loading') return <div className="h-screen flex items-center justify-center font-bold text-slate-400 animate-pulse">SKS Loading...</div>;
 
             if (view === 'login') return (
@@ -495,33 +529,6 @@
                     </div>
                 );
             }
-
-            const AdminNav = () => (
-                <nav className="w-64 bg-black text-white p-6 flex flex-col border-r border-slate-800 no-print hidden md:flex">
-                    <div className="flex items-center gap-3 mb-10">
-                        <div className="w-8 h-8 bg-sks-red rounded flex items-center justify-center font-bold italic text-sm">S</div>
-                        <h2 className="font-bold text-lg tracking-tight uppercase">Admin Panel</h2>
-                    </div>
-                    <div className="space-y-2 flex-1">
-                        <button onClick={() => setView('admin_dashboard')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_dashboard'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="layout-dashboard" size={16}/> Dashboard</button>
-                        <button onClick={() => setView('admin_report')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_report'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="users" size={16}/> Trainees</button>
-                        <button onClick={() => setView('admin_courses')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_courses'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="book-open" size={16}/> Courses</button>
-                    </div>
-                    <button onClick={logout} className="p-3 font-bold text-xs text-sks-red flex items-center gap-3 hover:bg-slate-900 rounded-lg"><Icon name="log-out" size={16}/> Logout</button>
-                </nav>
-            );
-
-            const MobileAdminNav = () => (
-                <div className="md:hidden bg-black text-white p-4 flex justify-between items-center sticky top-0 z-50">
-                    <span className="font-bold uppercase">SKS Admin</span>
-                    <div className="flex gap-4">
-                        <button onClick={() => setView('admin_dashboard')}><Icon name="layout-dashboard" size={20}/></button>
-                        <button onClick={() => setView('admin_report')}><Icon name="users" size={20}/></button>
-                        <button onClick={() => setView('admin_courses')}><Icon name="book-open" size={20}/></button>
-                        <button onClick={logout} className="text-sks-red"><Icon name="log-out" size={20}/></button>
-                    </div>
-                </div>
-            );
 
             if (view === 'admin_dashboard') {
                 const trainees = allUsers.filter(u => u.role !== 'admin');
@@ -739,7 +746,7 @@
                                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
                                             <button onClick={() => setEditingCourse(c)} className="p-3 bg-slate-100 rounded-lg hover:bg-black hover:text-white transition-all"><Icon name="edit-3" size={16}/></button>
                                             
-                                            {/* BUTTON DELETE: เรียกใช้งาน handleDeleteCourse */}
+                                            {/* ปุ่มลบ Course เรียกใช้ handleDeleteCourse */}
                                             <button 
                                                 onClick={() => handleDeleteCourse(c.id)} 
                                                 className="p-3 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"
