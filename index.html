@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SKS Safety E-Learning</title>
     
-    <!-- ส่วนแก้ปัญหา LOGO บนแท็บเบราว์เซอร์ (Favicon) -->
-    <!-- ให้คุณนำ URL รูปภาพโลโก้มาใส่ใน href ด้านล่างนี้แทนที่ placeholder -->
+    <!-- ส่วนแก้ปัญหา LOGO บนแท็บเบราว์เซอร์ -->
     <link rel="icon" type="image/png" href="https://github.com/chaiyakitpromsri-debug/web-assets/blob/main/logo/del_background.png?raw=true">
     <link rel="apple-touch-icon" href="https://github.com/chaiyakitpromsri-debug/web-assets/blob/main/logo/del_background.png?raw=true">
 
@@ -188,15 +187,31 @@
                 } catch (error) { alert("Login Error: " + error.message); }
             };
 
+            // ---------------------------------------------------------
+            // [แก้ไขข้อ 2] ปรับ Logic CSV ให้แสดงคอลัมน์ตามคอร์ส และสถานะ 3 แบบ
+            // ---------------------------------------------------------
             const exportToCSV = (data) => {
-                const headers = ["Name", "Company", "Courses Status"];
+                // 1. สร้าง Header: ชื่อ, บริษัท, [ชื่อคอร์ส1], [ชื่อคอร์ส2]...
+                const courseHeaders = courses.map(c => `"${c.titleTh}"`); 
+                const headers = ["Name", "Company", ...courseHeaders];
+                
+                // 2. สร้าง Rows
                 const rows = data.map(u => {
-                    const statusStr = Object.entries(u.coursesStatus || {}).map(([cid, st]) => {
-                        const courseName = courses.find(c => c.id === cid)?.titleTh || cid;
-                        return `${courseName}: ${st.status} (${st.score}%)`;
-                    }).join(" | ");
-                    return `"${u.name}", "${u.company}", "${statusStr}"`;
+                    // วนลูปแต่ละคอร์สเพื่อหาสถานะของ User คนนั้น
+                    const courseStatuses = courses.map(c => {
+                        const s = u.coursesStatus?.[c.id];
+                        if (s?.status === 'Passed') {
+                            return `"ผ่าน (${s.date})"`; // สถานะ 1: ผ่าน + วันที่
+                        } else if (s?.status === 'Failed') {
+                            return `"ไม่ผ่าน"`; // สถานะ 2: ไม่ผ่าน
+                        } else {
+                            return `"ยังไม่ได้เรียน"`; // สถานะ 3: ยังไม่เรียน
+                        }
+                    });
+                    
+                    return [`"${u.name}"`, `"${u.company}"`, ...courseStatuses].join(",");
                 });
+
                 const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
@@ -239,6 +254,22 @@
                 e.target.value = null;
             };
 
+            // ---------------------------------------------------------
+            // [แก้ไขข้อ 1] เพิ่มฟังก์ชันลบ Course และแจ้ง Error ถ้าลบไม่ได้
+            // ---------------------------------------------------------
+            const handleDeleteCourse = async (courseId) => {
+                if(confirm('คุณต้องการลบหลักสูตรนี้ใช่หรือไม่? ข้อมูลคะแนนของผู้เรียนในวิชานี้จะหายไป')) {
+                    try {
+                        await db.collection('courses').doc(courseId).delete();
+                        alert("ลบหลักสูตรเรียบร้อยแล้ว"); // แจ้งเตือนเมื่อสำเร็จ
+                    } catch (error) {
+                        console.error("Delete Error:", error);
+                        // ถ้าลบไม่ได้ จะแจ้ง Error Code ออกมา (เช่น Missing or insufficient permissions)
+                        alert("ไม่สามารถลบได้: " + error.message + "\n\n(กรุณาเช็ค Firebase Rules ใน Console ว่าอนุญาตให้ delete หรือไม่)");
+                    }
+                }
+            };
+
             const handleAddQuestion = () => {
                 if (!tempQ.q || tempQ.options.some(o => !o)) return alert("Please fill all fields");
                 const updatedQuestions = [...(editingCourse?.questions || []), tempQ];
@@ -251,12 +282,21 @@
                 setEditingCourse({ ...editingCourse, questions: updatedQuestions });
             };
 
+            const extractVideoId = (url) => {
+                if (!url) return '';
+                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                const match = url.match(regExp);
+                return (match && match[2].length === 11) ? match[2] : url;
+            };
+
             const handleSaveCourse = async (e) => {
                 e.preventDefault();
                 const title = e.target.title.value;
-                const videoId = e.target.videoId.value;
+                const videoIdInput = e.target.videoId.value;
                 const imageUrl = e.target.imageUrl.value;
                 const timeLimit = parseInt(e.target.timeLimit.value) || 0; 
+                
+                const videoId = extractVideoId(videoIdInput);
 
                 if (!editingCourse?.questions?.length) return alert("Please add at least one question.");
 
@@ -276,19 +316,6 @@
                 }
                 setEditingCourse(null);
                 setView('admin_courses');
-            };
-
-            // แก้ไขจุดที่ 1: ฟังก์ชันลบ Course แบบสมบูรณ์
-            const handleDeleteCourse = async (courseId) => {
-                if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบหลักสูตรนี้? ข้อมูลคะแนนทั้งหมดจะหายไป')) {
-                    try {
-                        await db.collection('courses').doc(courseId).delete();
-                        alert('ลบหลักสูตรเรียบร้อยแล้ว');
-                        // เมื่อลบสำเร็จ Firestore onSnapshot จะอัปเดต state courses ให้อัตโนมัติ
-                    } catch (error) {
-                        alert("เกิดข้อผิดพลาดในการลบ: " + error.message);
-                    }
-                }
             };
 
             const handleAutoSubmit = async () => {
@@ -339,42 +366,20 @@
                 if (!url) return <div className="w-full h-full flex items-center justify-center text-white opacity-20">Video Not Found</div>;
                 const isYouTube = url.includes('youtube.com') || url.includes('youtu.be') || url.length === 11;
                 if (isYouTube) {
-                    const vid = url.includes('v=') ? url.split('v=')[1].split('&')[0] : (url.includes('be/') ? url.split('be/')[1] : url);
-                    return <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${vid}`} frameBorder="0" allowFullScreen></iframe>;
+                    const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : (url.includes('be/') ? url.split('be/')[1] : url);
+                    return <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allowFullScreen></iframe>;
                 } else {
-                    return <video className="w-full h-full" controls controlsList="nodownload"><source src={url} type="video/mp4" /></video>;
+                    return (
+                        <video className="w-full h-full" controls controlsList="nodownload">
+                            <source src={url} type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+                    );
                 }
             };
 
-            // --- NAVIGATION ---
-            const AdminNav = () => (
-                <nav className="w-64 bg-black text-white p-6 flex flex-col border-r border-slate-800 no-print hidden md:flex">
-                    <div className="flex items-center gap-3 mb-10">
-                        <div className="w-8 h-8 bg-sks-red rounded flex items-center justify-center font-bold italic text-sm">S</div>
-                        <h2 className="font-bold text-lg tracking-tight uppercase">Admin Panel</h2>
-                    </div>
-                    <div className="space-y-2 flex-1">
-                        <button onClick={() => setView('admin_dashboard')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_dashboard'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="layout-dashboard" size={16}/> Dashboard</button>
-                        <button onClick={() => setView('admin_report')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_report'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="users" size={16}/> Trainees</button>
-                        <button onClick={() => setView('admin_courses')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_courses'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="book-open" size={16}/> Courses</button>
-                    </div>
-                    <button onClick={logout} className="p-3 font-bold text-xs text-sks-red flex items-center gap-3 hover:bg-slate-900 rounded-lg"><Icon name="log-out" size={16}/> Logout</button>
-                </nav>
-            );
-
-            const MobileAdminNav = () => (
-                <div className="md:hidden bg-black text-white p-4 flex justify-between items-center sticky top-0 z-50">
-                    <span className="font-bold uppercase">SKS Admin</span>
-                    <div className="flex gap-4">
-                        <button onClick={() => setView('admin_dashboard')}><Icon name="layout-dashboard" size={20}/></button>
-                        <button onClick={() => setView('admin_report')}><Icon name="users" size={20}/></button>
-                        <button onClick={() => setView('admin_courses')}><Icon name="book-open" size={20}/></button>
-                        <button onClick={logout} className="text-sks-red"><Icon name="log-out" size={20}/></button>
-                    </div>
-                </div>
-            );
-
             // --- VIEWS ---
+
             if (view === 'loading') return <div className="h-screen flex items-center justify-center font-bold text-slate-400 animate-pulse">SKS Loading...</div>;
 
             if (view === 'login') return (
@@ -530,14 +535,44 @@
                 );
             }
 
+            const AdminNav = () => (
+                <nav className="w-64 bg-black text-white p-6 flex flex-col border-r border-slate-800 no-print hidden md:flex">
+                    <div className="flex items-center gap-3 mb-10">
+                        <div className="w-8 h-8 bg-sks-red rounded flex items-center justify-center font-bold italic text-sm">S</div>
+                        <h2 className="font-bold text-lg tracking-tight uppercase">Admin Panel</h2>
+                    </div>
+                    <div className="space-y-2 flex-1">
+                        <button onClick={() => setView('admin_dashboard')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_dashboard'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="layout-dashboard" size={16}/> Dashboard</button>
+                        <button onClick={() => setView('admin_report')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_report'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="users" size={16}/> Trainees</button>
+                        <button onClick={() => setView('admin_courses')} className={`w-full flex items-center gap-3 p-3 rounded-lg font-bold text-xs uppercase tracking-wider text-left ${view==='admin_courses'?'bg-sks-red text-white':'text-slate-500 hover:text-white'}`}><Icon name="book-open" size={16}/> Courses</button>
+                    </div>
+                    <button onClick={logout} className="p-3 font-bold text-xs text-sks-red flex items-center gap-3 hover:bg-slate-900 rounded-lg"><Icon name="log-out" size={16}/> Logout</button>
+                </nav>
+            );
+
+            const MobileAdminNav = () => (
+                <div className="md:hidden bg-black text-white p-4 flex justify-between items-center sticky top-0 z-50">
+                    <span className="font-bold uppercase">SKS Admin</span>
+                    <div className="flex gap-4">
+                        <button onClick={() => setView('admin_dashboard')}><Icon name="layout-dashboard" size={20}/></button>
+                        <button onClick={() => setView('admin_report')}><Icon name="users" size={20}/></button>
+                        <button onClick={() => setView('admin_courses')}><Icon name="book-open" size={20}/></button>
+                        <button onClick={logout} className="text-sks-red"><Icon name="log-out" size={20}/></button>
+                    </div>
+                </div>
+            );
+
             if (view === 'admin_dashboard') {
                 const trainees = allUsers.filter(u => u.role !== 'admin');
+                const totalTrainees = trainees.length;
                 const companyStats = {};
                 trainees.forEach(u => {
                     if (!companyStats[u.company]) companyStats[u.company] = { total: 0, passedAll: 0 };
                     companyStats[u.company].total++;
-                    const allPassed = courses.length > 0 && courses.every(c => u.coursesStatus?.[c.id]?.status === 'Passed');
-                    if (allPassed) companyStats[u.company].passedAll++;
+                    const passedCount = courses.filter(c => u.coursesStatus?.[c.id]?.status === 'Passed').length;
+                    if (courses.length > 0 && passedCount === courses.length) {
+                        companyStats[u.company].passedAll++;
+                    }
                 });
 
                 return (
@@ -546,108 +581,117 @@
                         <main className="flex-1 p-6 md:p-12 overflow-y-auto">
                             <h2 className="text-3xl font-bold text-slate-800 mb-8">System Overview</h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                                <div className="bg-white p-8 formal-card border-l-4 border-black text-center md:text-left">
-                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Total Trainees</p>
-                                    <h3 className="text-5xl font-black text-slate-900">{trainees.length}</h3>
+                                <div className="bg-white p-8 formal-card border-l-4 border-black">
+                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">Total Trainees</p>
+                                    <h3 className="text-5xl font-black text-slate-900">{totalTrainees}</h3>
                                 </div>
-                                <div className="bg-white p-8 formal-card border-l-4 border-sks-red text-center md:text-left">
-                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Active Courses</p>
+                                <div className="bg-white p-8 formal-card border-l-4 border-sks-red">
+                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">Active Courses</p>
                                     <h3 className="text-5xl font-black text-sks-red">{courses.length}</h3>
                                 </div>
-                                <div className="bg-white p-8 formal-card border-l-4 border-slate-300 text-center md:text-left">
-                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Companies</p>
-                                    <h3 className="text-5xl font-black text-slate-900">{Object.keys(companyStats).length}</h3>
-                                </div>
                             </div>
-
-                            <h3 className="font-bold text-slate-400 text-xs uppercase tracking-[0.2em] mb-6">Company Performance</h3>
+                            <h3 className="text-xl font-bold text-slate-800 mb-6">Company Breakdown</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {Object.entries(companyStats).map(([name, stat]) => {
-                                    const percent = Math.round((stat.passedAll / stat.total) * 100);
-                                    return (
-                                        <div key={name} className="bg-white p-6 formal-card border border-slate-100 flex flex-col justify-between">
-                                            <div>
-                                                <h4 className="font-bold text-lg text-slate-800 mb-1 truncate">{name}</h4>
-                                                <p className="text-slate-400 text-xs font-bold uppercase mb-4">{stat.total} Trainees</p>
-                                            </div>
-                                            <div>
-                                                <div className="flex justify-between text-[10px] font-bold uppercase mb-2">
-                                                    <span className="text-slate-400">Completion Rate</span>
-                                                    <span className="text-sks-red">{percent}%</span>
-                                                </div>
-                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                                    <div className="bg-black h-2 transition-all duration-1000" style={{width: `${percent}%`}}></div>
-                                                </div>
-                                            </div>
+                                {Object.entries(companyStats).map(([company, stats]) => (
+                                    <div key={company} className="bg-white p-6 formal-card">
+                                        <h4 className="font-bold text-lg mb-4">{company}</h4>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-xs text-slate-500 uppercase font-bold">Progress</span>
+                                            <span className="text-xs font-bold">{stats.passedAll}/{stats.total} Finished</span>
                                         </div>
-                                    );
-                                })}
+                                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                            <div className="bg-green-500 h-2" style={{width: `${(stats.passedAll/stats.total)*100}%`}}></div>
+                                        </div>
+                                        <div className="mt-4 text-xs text-slate-400">
+                                            Remaining: <span className="text-sks-red font-bold">{stats.total - stats.passedAll}</span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </main>
                     </div>
                 );
             }
 
+            // ---------------------------------------------------------
+            // [แก้ไขข้อ 2] หน้า Trainee Report (แสดงตารางสถานะ 3 แบบ)
+            // ---------------------------------------------------------
             if (view === 'admin_report') {
-                const filteredUsers = allUsers.filter(u => u.role !== 'admin' && u.name?.toLowerCase().includes(filters.name.toLowerCase()) && u.company?.toLowerCase().includes(filters.company.toLowerCase()));
+                const filteredUsers = allUsers.filter(u => {
+                    if (u.role === 'admin') return false;
+                    const matchesName = u.name?.toLowerCase().includes(filters.name.toLowerCase());
+                    const matchesCompany = u.company?.toLowerCase().includes(filters.company.toLowerCase());
+                    return matchesName && matchesCompany;
+                });
+
                 return (
                     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
                         <AdminNav /><MobileAdminNav />
                         <main className="flex-1 p-6 md:p-12 overflow-y-auto">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b pb-6 mb-8 gap-4">
+                            <div className="flex flex-col md:flex-row justify-between items-end border-b pb-6 mb-8 gap-4">
                                 <h2 className="text-3xl font-bold text-slate-800">Trainee Report</h2>
-                                <div className="flex gap-3 w-full md:w-auto">
+                                <div className="flex gap-3">
                                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv,.txt" style={{display:'none'}} />
-                                    <button onClick={() => fileInputRef.current.click()} className="flex-1 md:flex-none bg-white border border-slate-200 px-4 py-2 rounded-lg font-bold text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"><Icon name="upload" size={14}/> Import CSV</button>
-                                    <button onClick={() => exportToCSV(filteredUsers)} className="flex-1 md:flex-none bg-black text-white px-4 py-2 rounded-lg font-bold text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-md"><Icon name="download" size={14}/> Export CSV</button>
+                                    <button onClick={() => fileInputRef.current.click()} className="bg-white text-slate-700 border border-slate-300 px-4 py-2 rounded-lg font-bold text-xs uppercase hover:bg-slate-50 flex items-center gap-2">
+                                        <Icon name="upload" size={14}/> Import CSV
+                                    </button>
+                                    <button onClick={() => exportToCSV(filteredUsers)} className="bg-black text-white px-4 py-2 rounded-lg font-bold text-xs uppercase hover:bg-slate-800 flex items-center gap-2 shadow-md">
+                                        <Icon name="download" size={14}/> Export CSV
+                                    </button>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-3 flex items-center text-slate-400"><Icon name="search" size={16}/></div>
-                                    <input placeholder="Filter by Name" className="formal-input w-full p-3 pl-10 border border-slate-200 outline-none focus:border-black text-sm" value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})}/>
-                                </div>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-3 flex items-center text-slate-400"><Icon name="building-2" size={16}/></div>
-                                    <input placeholder="Filter by Company" className="formal-input w-full p-3 pl-10 border border-slate-200 outline-none focus:border-black text-sm" value={filters.company} onChange={e => setFilters({...filters, company: e.target.value})}/>
-                                </div>
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <input placeholder="Filter by Name" className="formal-input p-3 border" value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})}/>
+                                <input placeholder="Filter by Company" className="formal-input p-3 border" value={filters.company} onChange={e => setFilters({...filters, company: e.target.value})}/>
                             </div>
-                            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse min-w-[600px]">
-                                        <thead className="bg-slate-50 border-b">
-                                            <tr>
-                                                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Trainee Info</th>
-                                                {courses.map(c => <th key={c.id} className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest text-center">{c.titleTh}</th>)}
-                                                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest text-right">Manage</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredUsers.map(u => (
-                                                <tr key={u.id} className="border-b hover:bg-slate-50 transition-colors">
-                                                    <td className="p-4 min-w-[200px]">
-                                                        <div className="font-bold text-slate-800">{u.name}</div>
-                                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{u.company}</div>
-                                                    </td>
-                                                    {courses.map(c => {
-                                                        const status = u.coursesStatus?.[c.id];
-                                                        const passed = status?.status === 'Passed';
-                                                        return (
-                                                            <td key={c.id} className="p-4 text-center">
-                                                                {status ? (
-                                                                    <div className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${passed?'bg-green-100 text-green-600':'bg-red-100 text-red-600'}`}>{status.score}%</div>
-                                                                ) : <div className="text-slate-200">-</div>}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                    <td className="p-4 text-right">
-                                                        <button onClick={() => { if(confirm('Delete user and all records?')) db.collection('users').doc(u.id).delete(); }} className="text-slate-300 hover:text-red-500 transition-all"><Icon name="trash-2" size={16}/></button>
-                                                    </td>
-                                                </tr>
+                            
+                            {/* ตารางแสดงผลรายบุคคลแบบละเอียด (Matrix Table) */}
+                            <div className="bg-white rounded-xl shadow-sm overflow-x-auto border border-slate-200">
+                                <table className="w-full text-left border-collapse min-w-max">
+                                    <thead className="bg-slate-50 border-b border-slate-200">
+                                        <tr>
+                                            <th className="p-4 text-xs font-bold uppercase text-slate-500 sticky left-0 bg-slate-50 z-10">Trainee Info</th>
+                                            {courses.map(c => (
+                                                <th key={c.id} className="p-4 text-xs font-bold uppercase text-slate-500 text-center min-w-[120px]">{c.titleTh}</th>
                                             ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            <th className="p-4 text-xs font-bold uppercase text-slate-500 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredUsers.map(u => (
+                                            <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                                <td className="p-4 sticky left-0 bg-white z-10">
+                                                    <div className="font-bold text-sm text-slate-800">{u.name}</div>
+                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">{u.company}</div>
+                                                </td>
+                                                {courses.map(c => {
+                                                    const status = u.coursesStatus?.[c.id];
+                                                    let badgeClass = "bg-slate-100 text-slate-400";
+                                                    let statusText = "ยังไม่ได้เรียน";
+                                                    
+                                                    if (status?.status === 'Passed') {
+                                                        badgeClass = "bg-green-100 text-green-700";
+                                                        statusText = `ผ่าน (${status.date})`;
+                                                    } else if (status?.status === 'Failed') {
+                                                        badgeClass = "bg-red-100 text-red-600";
+                                                        statusText = "ไม่ผ่าน";
+                                                    }
+
+                                                    return (
+                                                        <td key={c.id} className="p-4 text-center">
+                                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${badgeClass}`}>
+                                                                {statusText}
+                                                            </span>
+                                                        </td>
+                                                    );
+                                                })}
+                                                <td className="p-4 text-right">
+                                                    <button onClick={() => { if(confirm('Delete user?')) db.collection('users').doc(u.id).delete(); }} className="text-red-500 hover:text-red-700"><Icon name="trash-2" size={16}/></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </main>
                     </div>
@@ -657,102 +701,72 @@
             if (view === 'admin_courses') {
                 return (
                     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
-                        <AdminNav /><MobileAdminNav />
+                         <AdminNav /><MobileAdminNav />
                         <main className="flex-1 p-6 md:p-12 overflow-y-auto">
                             <h2 className="text-3xl font-bold text-slate-800 mb-8">Course Management</h2>
-                            <div className="bg-white p-6 md:p-8 formal-card mb-12 border border-slate-200">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-2 h-8 bg-black"></div>
-                                    <h3 className="font-bold text-xl uppercase tracking-tight">{editingCourse ? 'Edit Course' : 'Create New Course'}</h3>
-                                </div>
-                                <form onSubmit={handleSaveCourse} className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Thai Title</label>
-                                            <input name="title" defaultValue={editingCourse?.titleTh} placeholder="ชื่อหลักสูตร (ภาษาไทย)" required className="formal-input w-full p-4 border border-slate-200 bg-slate-50 outline-none focus:border-black text-sm"/>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Video Source (YouTube or Direct Link)</label>
-                                            <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="YouTube ID or MP4 Link" required className="formal-input w-full p-4 border border-slate-200 bg-slate-50 outline-none focus:border-black text-sm"/>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Thumbnail Image URL (Optional)</label>
-                                            <input name="imageUrl" defaultValue={editingCourse?.imageUrl} placeholder="https://..." className="formal-input w-full p-4 border border-slate-200 bg-slate-50 outline-none focus:border-black text-sm"/>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Exam Time Limit (Minutes, 0 = No Limit)</label>
-                                            <input name="timeLimit" type="number" defaultValue={editingCourse?.timeLimit || 0} placeholder="Time in minutes" className="formal-input w-full p-4 border border-slate-200 bg-slate-50 outline-none focus:border-black text-sm"/>
-                                        </div>
+                            
+                            <div className="bg-white p-6 formal-card mb-8 border border-slate-200">
+                                <h3 className="font-bold text-lg mb-4">{editingCourse ? 'Edit Course' : 'Create New Course'}</h3>
+                                <form onSubmit={handleSaveCourse} className="space-y-4">
+                                    <input name="title" defaultValue={editingCourse?.titleTh} placeholder="Course Title" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="Video URL / YouTube ID" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black col-span-2"/>
+                                        <input name="imageUrl" defaultValue={editingCourse?.imageUrl} placeholder="Cover Image URL" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                        <input name="timeLimit" type="number" defaultValue={editingCourse?.timeLimit || 0} placeholder="Time Limit (Minutes)" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
                                     </div>
 
-                                    <div className="border-t border-dashed pt-8">
-                                        <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Icon name="help-circle" size={18}/> Question Builder ({editingCourse?.questions?.length || 0})</h4>
-                                        <div className="bg-slate-100 p-6 rounded-xl space-y-4 mb-6 border border-slate-200 shadow-inner">
-                                            <input value={tempQ.q} onChange={e => setTempQ({...tempQ, q: e.target.value})} placeholder="Question Text?" className="formal-input w-full p-4 border border-slate-200 bg-white outline-none focus:border-black font-bold"/>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="border-t pt-4 mt-4">
+                                        <h4 className="font-bold text-sm mb-4">Questions ({editingCourse?.questions?.length || 0})</h4>
+                                        <div className="bg-slate-50 p-4 rounded-lg space-y-3 mb-4 border border-slate-200">
+                                            <input value={tempQ.q} onChange={e => setTempQ({...tempQ, q: e.target.value})} placeholder="Question Text" className="formal-input w-full p-3 border"/>
+                                            <div className="grid grid-cols-2 gap-2">
                                                 {tempQ.options.map((opt, i) => (
-                                                    <div key={i} className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold text-slate-400 w-4">{i+1}</span>
-                                                        <input value={opt} onChange={e => {
-                                                            const nO = [...tempQ.options]; nO[i] = e.target.value;
-                                                            setTempQ({...tempQ, options: nO});
-                                                        }} placeholder={`Choice ${i+1}`} className="formal-input w-full p-3 border border-slate-200 bg-white outline-none focus:border-black text-sm"/>
-                                                    </div>
+                                                    <input key={i} value={opt} onChange={e => {
+                                                        const newOpts = [...tempQ.options];
+                                                        newOpts[i] = e.target.value;
+                                                        setTempQ({...tempQ, options: newOpts});
+                                                    }} placeholder={`Option ${i+1}`} className="formal-input w-full p-3 border"/>
                                                 ))}
                                             </div>
-                                            <div className="flex flex-col md:flex-row gap-4 pt-2">
-                                                <select value={tempQ.a} onChange={e => setTempQ({...tempQ, a: parseInt(e.target.value)})} className="formal-input flex-1 p-3 border border-slate-200 bg-white outline-none font-bold text-xs uppercase tracking-widest">
-                                                    {tempQ.options.map((_, i) => <option key={i} value={i}>Correct Choice: {i+1}</option>)}
-                                                </select>
-                                                <button type="button" onClick={handleAddQuestion} className="formal-btn bg-slate-800 text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-black transition-all">Add to List</button>
-                                            </div>
+                                            <select value={tempQ.a} onChange={e => setTempQ({...tempQ, a: parseInt(e.target.value)})} className="formal-input w-full p-3 border">
+                                                {tempQ.options.map((_, i) => <option key={i} value={i}>Correct Answer: Option {i+1}</option>)}
+                                            </select>
+                                            <button type="button" onClick={handleAddQuestion} className="formal-btn bg-slate-800 text-white w-full py-2 text-xs font-bold uppercase">Add Question</button>
                                         </div>
 
-                                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                                        <div className="space-y-2 max-h-40 overflow-y-auto">
                                             {editingCourse?.questions?.map((q, i) => (
-                                                <div key={i} className="flex justify-between items-start p-4 bg-white border border-slate-200 rounded-lg group hover:border-black transition-all">
-                                                    <div className="pr-4">
-                                                        <div className="font-bold text-sm text-slate-800">{i+1}. {q.q}</div>
-                                                        <div className="grid grid-cols-2 gap-x-6 mt-2">
-                                                            {q.options.map((opt, idx) => <div key={idx} className={`text-[10px] font-semibold ${idx===q.a ? 'text-green-600':'text-slate-400'}`}>{idx+1}. {opt}</div>)}
-                                                        </div>
-                                                    </div>
-                                                    <button type="button" onClick={() => handleRemoveQuestion(i)} className="text-slate-200 group-hover:text-red-500 transition-all p-2"><Icon name="trash-2" size={16}/></button>
+                                                <div key={i} className="flex justify-between items-center p-3 bg-white border rounded text-sm">
+                                                    <span className="truncate w-3/4">{i+1}. {q.q}</span>
+                                                    <button type="button" onClick={() => handleRemoveQuestion(i)} className="text-red-500"><Icon name="trash-2" size={14}/></button>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
-                                    
-                                    <div className="flex flex-col md:flex-row gap-3 pt-6 border-t">
-                                        <button type="submit" className="formal-btn bg-black text-white px-12 py-4 font-bold text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-slate-800 transition-all">Save & Publish Course</button>
-                                        {editingCourse && <button onClick={() => setEditingCourse(null)} type="button" className="formal-btn bg-white border border-slate-200 px-12 py-4 font-bold text-xs uppercase tracking-[0.2em] text-slate-400 hover:bg-slate-50 transition-all">Cancel Edit</button>}
+
+                                    <div className="flex gap-2 border-t pt-4">
+                                        <button type="submit" className="formal-btn bg-black text-white px-6 py-2 font-bold text-xs uppercase">Save Course</button>
+                                        {editingCourse && <button onClick={() => { setEditingCourse(null); setTempQ({q:'', options:['','','',''], a:0}); }} type="button" className="formal-btn bg-slate-200 text-slate-600 px-6 py-2 font-bold text-xs uppercase">Cancel</button>}
                                     </div>
                                 </form>
                             </div>
 
-                            <h3 className="font-bold text-slate-400 text-xs uppercase tracking-[0.2em] mb-6">Existing Courses</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {courses.map(c => (
-                                    <div key={c.id} className="bg-white p-6 formal-card flex justify-between items-center border border-slate-200 group hover:shadow-lg transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center font-black text-slate-300 italic">S</div>
+                                    <div key={c.id} className="bg-white p-6 formal-card flex justify-between items-center group">
+                                        <div className="flex gap-4 items-center">
+                                            <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                                                {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Icon name="image" size={20}/></div>}
+                                            </div>
                                             <div>
-                                                <h4 className="font-bold text-slate-800 leading-tight mb-1">{c.titleTh}</h4>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{c.questions?.length || 0} Questions • {c.timeLimit || 'No'} min limit</p>
+                                                <h4 className="font-bold text-md">{c.titleTh}</h4>
+                                                <p className="text-xs text-slate-400">Q: {c.questions?.length} | Time: {c.timeLimit || 'No'} min</p>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                            <button onClick={() => setEditingCourse(c)} className="p-3 bg-slate-100 rounded-lg hover:bg-black hover:text-white transition-all"><Icon name="edit-3" size={16}/></button>
-                                            
-                                            {/* ปุ่มลบ Course เรียกใช้ handleDeleteCourse */}
-                                            <button 
-                                                onClick={() => handleDeleteCourse(c.id)} 
-                                                className="p-3 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"
-                                            >
-                                                <Icon name="trash-2" size={16}/>
-                                            </button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingCourse(c)} className="p-2 bg-slate-100 rounded hover:bg-slate-200"><Icon name="edit" size={16}/></button>
+                                            {/* ปุ่มลบที่เรียกใช้ handleDeleteCourse */}
+                                            <button onClick={() => handleDeleteCourse(c.id)} className="p-2 bg-red-50 text-red-500 rounded hover:bg-red-100"><Icon name="trash-2" size={16}/></button>
                                         </div>
                                     </div>
                                 ))}
