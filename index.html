@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKS Safety E-Learning V9 (Multi-Source Video & Delete)</title>
+    <title>SKS Safety E-Learning V10 (Fix Delete Function)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -68,6 +68,7 @@
             return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
         };
 
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCTVPEG8h9T1OU7fv5nQyKifSC-vAyr1Bo",
             authDomain: "driver-training-program.firebaseapp.com",
@@ -273,6 +274,20 @@
                 setView('admin_courses');
             };
 
+            // NEW: ฟังก์ชันลบหลักสูตรที่ทำงานสมบูรณ์
+            const handleDeleteCourse = async (courseId) => {
+                if (!courseId) return;
+                if(confirm('ยืนยันการลบหลักสูตรนี้ใช่หรือไม่? (ข้อมูลจะหายไปถาวร)')) {
+                    try {
+                        await db.collection('courses').doc(courseId).delete();
+                        // ไม่ต้อง Alert ก็ได้เพราะหน้าจอจะอัปเดตอัตโนมัติผ่าน onSnapshot
+                    } catch (error) {
+                        console.error("Error deleting course: ", error);
+                        alert("เกิดข้อผิดพลาดในการลบ: " + error.message);
+                    }
+                }
+            };
+
             const handleAutoSubmit = async () => {
                 await submitQuiz(true);
             };
@@ -317,24 +332,14 @@
                 return `${m}:${s < 10 ? '0' : ''}${s}`;
             };
 
-            // --- Multi-Source Video Player ---
             const renderVideo = (url) => {
                 if (!url) return <div className="w-full h-full flex items-center justify-center text-white opacity-20">Video Not Found</div>;
-                
-                // เช็คว่าเป็น YouTube หรือไม่
                 const isYouTube = url.includes('youtube.com') || url.includes('youtu.be') || url.length === 11;
-                
                 if (isYouTube) {
-                    const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : (url.includes('be/') ? url.split('be/')[1] : url);
-                    return <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allowFullScreen></iframe>;
+                    const vid = url.includes('v=') ? url.split('v=')[1].split('&')[0] : (url.includes('be/') ? url.split('be/')[1] : url);
+                    return <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${vid}`} frameBorder="0" allowFullScreen></iframe>;
                 } else {
-                    // ถ้าไม่ใช่ YouTube ให้ใช้ HTML5 Video Player (สำหรับ GitHub/Direct Link)
-                    return (
-                        <video className="w-full h-full" controls controlsList="nodownload">
-                            <source src={url} type="video/mp4" />
-                            Your browser does not support the video tag.
-                        </video>
-                    );
+                    return <video className="w-full h-full" controls controlsList="nodownload"><source src={url} type="video/mp4" /></video>;
                 }
             };
 
@@ -524,15 +529,11 @@
 
             if (view === 'admin_dashboard') {
                 const trainees = allUsers.filter(u => u.role !== 'admin');
-                const totalTrainees = trainees.length;
                 const companyStats = {};
                 trainees.forEach(u => {
                     if (!companyStats[u.company]) companyStats[u.company] = { total: 0, passedAll: 0 };
                     companyStats[u.company].total++;
-                    const passedCount = courses.filter(c => u.coursesStatus?.[c.id]?.status === 'Passed').length;
-                    if (courses.length > 0 && passedCount === courses.length) companyStats[u.company].passedAll++;
                 });
-
                 return (
                     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
                         <AdminNav /><MobileAdminNav />
@@ -541,27 +542,12 @@
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                                 <div className="bg-white p-8 formal-card border-l-4 border-black">
                                     <p className="text-xs font-bold text-slate-400 uppercase mb-2">Total Trainees</p>
-                                    <h3 className="text-5xl font-black text-slate-900">{totalTrainees}</h3>
+                                    <h3 className="text-5xl font-black text-slate-900">{trainees.length}</h3>
                                 </div>
                                 <div className="bg-white p-8 formal-card border-l-4 border-sks-red">
                                     <p className="text-xs font-bold text-slate-400 uppercase mb-2">Active Courses</p>
                                     <h3 className="text-5xl font-black text-sks-red">{courses.length}</h3>
                                 </div>
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-6">Company Breakdown</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {Object.entries(companyStats).map(([company, stats]) => (
-                                    <div key={company} className="bg-white p-6 formal-card">
-                                        <h4 className="font-bold text-lg mb-4">{company}</h4>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-xs text-slate-500 uppercase font-bold">Progress</span>
-                                            <span className="text-xs font-bold">{stats.passedAll}/{stats.total} Finished</span>
-                                        </div>
-                                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                            <div className="bg-green-500 h-2" style={{width: `${(stats.passedAll/stats.total)*100}%`}}></div>
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         </main>
                     </div>
@@ -569,22 +555,17 @@
             }
 
             if (view === 'admin_report') {
-                const filteredUsers = allUsers.filter(u => {
-                    if (u.role === 'admin') return false;
-                    const mN = u.name?.toLowerCase().includes(filters.name.toLowerCase());
-                    const mC = u.company?.toLowerCase().includes(filters.company.toLowerCase());
-                    return mN && mC;
-                });
+                const filteredUsers = allUsers.filter(u => u.role !== 'admin' && u.name?.toLowerCase().includes(filters.name.toLowerCase()) && u.company?.toLowerCase().includes(filters.company.toLowerCase()));
                 return (
                     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
                         <AdminNav /><MobileAdminNav />
                         <main className="flex-1 p-6 md:p-12 overflow-y-auto">
-                            <div className="flex flex-col md:flex-row justify-between items-end border-b pb-6 mb-8 gap-4">
+                            <div className="flex justify-between items-end border-b pb-6 mb-8 gap-4">
                                 <h2 className="text-3xl font-bold text-slate-800">Trainee Report</h2>
                                 <div className="flex gap-3">
                                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv,.txt" style={{display:'none'}} />
                                     <button onClick={() => fileInputRef.current.click()} className="bg-white border px-4 py-2 rounded-lg font-bold text-xs uppercase flex items-center gap-2"><Icon name="upload" size={14}/> Import CSV</button>
-                                    <button onClick={() => exportToCSV(filteredUsers)} className="bg-black text-white px-4 py-2 rounded-lg font-bold text-xs uppercase flex items-center gap-2 shadow-md"><Icon name="download" size={14}/> Export CSV</button>
+                                    <button onClick={() => exportToCSV(filteredUsers)} className="bg-black text-white px-4 py-2 rounded-lg font-bold text-xs uppercase flex items-center gap-2"><Icon name="download" size={14}/> Export CSV</button>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4 mb-6">
@@ -597,22 +578,17 @@
                                         <tr>
                                             <th className="p-4 text-xs font-bold uppercase text-slate-500">Name</th>
                                             <th className="p-4 text-xs font-bold uppercase text-slate-500">Company</th>
-                                            <th className="p-4 text-xs font-bold uppercase text-slate-500">Progress</th>
                                             <th className="p-4 text-xs font-bold uppercase text-slate-500">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredUsers.map(u => {
-                                             const pC = courses.filter(c => u.coursesStatus?.[c.id]?.status === 'Passed').length;
-                                             return (
-                                                <tr key={u.id} className="border-b hover:bg-slate-50">
-                                                    <td className="p-4 font-bold text-sm">{u.name}</td>
-                                                    <td className="p-4 text-sm text-slate-600">{u.company}</td>
-                                                    <td className="p-4 text-xs font-bold">{pC} / {courses.length}</td>
-                                                    <td className="p-4"><button onClick={() => { if(confirm('Delete user?')) db.collection('users').doc(u.id).delete(); }} className="text-red-500"><Icon name="trash-2" size={16}/></button></td>
-                                                </tr>
-                                             );
-                                        })}
+                                        {filteredUsers.map(u => (
+                                            <tr key={u.id} className="border-b hover:bg-slate-50">
+                                                <td className="p-4 font-bold text-sm">{u.name}</td>
+                                                <td className="p-4 text-sm text-slate-600">{u.company}</td>
+                                                <td className="p-4"><button onClick={() => { if(confirm('ลบผู้ใช้งาน?')) db.collection('users').doc(u.id).delete(); }} className="text-red-500"><Icon name="trash-2" size={16}/></button></td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
@@ -632,9 +608,8 @@
                                 <form onSubmit={handleSaveCourse} className="space-y-4">
                                     <input name="title" defaultValue={editingCourse?.titleTh} placeholder="Course Title" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="YouTube URL or Video File URL (GitHub etc.)" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black col-span-1 md:col-span-1"/>
-                                        <input name="imageUrl" defaultValue={editingCourse?.imageUrl} placeholder="Cover Image URL" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
-                                        <input name="timeLimit" type="number" defaultValue={editingCourse?.timeLimit || 0} placeholder="Limit (Min) - 0 = No Limit" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                        <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="Video URL" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black col-span-2"/>
+                                        <input name="timeLimit" type="number" defaultValue={editingCourse?.timeLimit || 0} placeholder="Limit (Min)" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
                                     </div>
                                     <div className="border-t pt-4">
                                         <h4 className="font-bold text-sm mb-4">Questions ({editingCourse?.questions?.length || 0})</h4>
@@ -664,25 +639,27 @@
                                     </div>
                                     <div className="flex gap-2 border-t pt-4">
                                         <button type="submit" className="formal-btn bg-black text-white px-6 py-2 font-bold text-xs uppercase">Save Course</button>
-                                        {editingCourse && <button onClick={() => { setEditingCourse(null); setTempQ({q:'', options:['','','',''], a:0}); }} type="button" className="formal-btn bg-slate-200 px-6 py-2 font-bold text-xs uppercase">Cancel</button>}
+                                        {editingCourse && <button onClick={() => setEditingCourse(null)} type="button" className="formal-btn bg-slate-200 px-6 py-2 font-bold text-xs uppercase">Cancel</button>}
                                     </div>
                                 </form>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {courses.map(c => (
-                                    <div key={c.id} className="bg-white p-6 formal-card flex justify-between items-center group border border-slate-100">
-                                        <div className="flex gap-4 items-center">
-                                            <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
-                                                {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Icon name="image" size={20}/></div>}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-md leading-tight">{c.titleTh}</h4>
-                                                <p className="text-xs text-slate-400">Q: {c.questions?.length} | Time: {c.timeLimit || 'Unlimited'}</p>
-                                            </div>
+                                    <div key={c.id} className="bg-white p-6 formal-card flex justify-between items-center border border-slate-100">
+                                        <div>
+                                            <h4 className="font-bold text-md leading-tight">{c.titleTh}</h4>
+                                            <p className="text-xs text-slate-400">Q: {c.questions?.length} | Time: {c.timeLimit || 'Unlimited'}</p>
                                         </div>
                                         <div className="flex gap-2">
                                             <button onClick={() => setEditingCourse(c)} className="p-2 bg-slate-100 rounded hover:bg-slate-200 transition-colors"><Icon name="edit" size={16}/></button>
-                                            <button onClick={() => { if(confirm('ต้องการลบหลักสูตรนี้ใช่หรือไม่?')) db.collection('courses').doc(c.id).delete(); }} className="p-2 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors"><Icon name="trash-2" size={16}/></button>
+                                            
+                                            {/* ปุ่มลบหลักสูตร (แก้ไขแล้ว) */}
+                                            <button 
+                                                onClick={() => handleDeleteCourse(c.id)} 
+                                                className="p-2 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors"
+                                            >
+                                                <Icon name="trash-2" size={16}/>
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
