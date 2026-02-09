@@ -33,15 +33,100 @@
 
         @media print {
             .no-print { display: none !important; }
-            body { background: white; }
-            .print-container { transform: scale(1); margin: 0; padding: 0; box-shadow: none; border: none; }
+            body { background: white; -webkit-print-color-adjust: exact; }
+            /* ตั้งค่าหน้ากระดาษเป็นแนวนอนและลบขอบขาว */
+            @page { size: A4 landscape; margin: 0; }
+            .print-container { 
+                width: 100% !important;
+                height: 100vh !important;
+                margin: 0 !important; 
+                padding: 0 !important; 
+                box-shadow: none !important; 
+                border: none !important; 
+                overflow: hidden !important;
+                background-color: white !important;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+            .cert-wrapper {
+                box-shadow: none !important;
+                margin: 0 !important;
+                /* ปรับขนาดให้พอดีกับ A4 แนวนอนตอนพิมพ์ */
+                transform: scale(1) !important;
+                transform-origin: top left !important;
+                left: 0 !important;
+                top: 0 !important;
+            }
         }
 
-        .cert-bg {
-            background: white;
-            border: 10px double #111827;
+        /* --- CERTIFICATE OVERLAY STYLES --- */
+        .cert-wrapper {
+            width: 1123px; /* ความกว้าง A4 แนวนอน (pixel approx @96dpi) */
+            height: 794px; /* ความสูง A4 แนวนอน */
             position: relative;
+            background-color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin: 0 auto;
+            overflow: hidden;
+            
+            /* [แก้ไข] ใส่ URL รูปภาพ Template ที่ถูกต้อง */
+            background-image: url('https://github.com/chaiyakitpromsri-debug/web-assets/blob/main/logo/certificate_upload.png?raw=true');
+            background-size: contain; /* ปรับให้รูปพอดีกรอบ */
+            background-repeat: no-repeat;
+            background-position: center;
         }
+
+        /* สไตล์ข้อความที่จะนำไปวางทับ (Overlay Text) */
+        .cert-data-text {
+            position: absolute;
+            z-index: 10;
+            color: #00a2e8; /* สีฟ้าตามที่ขอ */
+            font-weight: bold;
+            text-align: center;
+            transform: translate(-50%, -50%); /* จัดกึ่งกลางจากจุด anchor */
+            left: 50%; /* เริ่มต้นที่กึ่งกลางหน้ากระดาษ */
+            width: 80%; /* ความกว้างพื้นที่ข้อความ */
+            /* background: rgba(255, 0, 0, 0.1); เปิดเพื่อ debug ตำแหน่ง */
+        }
+
+        /* --- ตำแหน่งข้อความ (ปรับจูนได้ที่นี่) --- */
+        
+        .pos-name { 
+            top: 43.5%;        /* ระยะจากบนลงล่าง (0-100%) */
+            left: 70%;       /* ระยะจากซ้ายไปขวา (50% คือกึ่งกลาง) */
+            font-size: 42px; /* ขนาดตัวอักษร */
+            color: #1e3a8a;  /* สีตัวอักษร (น้ำเงินเข้ม) */
+        }
+
+        /* 2. ชื่อบริษัท */
+        .pos-company { 
+            top: 53%;      
+            left: 59%;     
+            font-size: 24px;
+            color: #1e3a8a;
+            text-align: left;
+            transform: translateY(-50%) !important; /* จัดชิดซ้ายใช้แค่ Y */
+        }
+        
+        /* 3. ชื่อคอร์ส */
+        .pos-course { 
+            top: 57%;      
+            left: 70%;     
+            font-size: 18px;
+            color: #1e3a8a;
+        }
+
+        /* 4. วันที่ */
+        .pos-date { 
+            top: 64%;      
+            left: 63.5%;     
+            font-size: 20px;
+            color: #475569;
+            text-align: left;
+            transform: translateY(-50%) !important;
+        }
+
     </style>
 </head>
 <body>
@@ -187,31 +272,15 @@
                 } catch (error) { alert("Login Error: " + error.message); }
             };
 
-            // ---------------------------------------------------------
-            // [แก้ไขข้อ 2] ปรับ Logic CSV ให้แสดงคอลัมน์ตามคอร์ส และสถานะ 3 แบบ
-            // ---------------------------------------------------------
             const exportToCSV = (data) => {
-                // 1. สร้าง Header: ชื่อ, บริษัท, [ชื่อคอร์ส1], [ชื่อคอร์ส2]...
-                const courseHeaders = courses.map(c => `"${c.titleTh}"`); 
-                const headers = ["Name", "Company", ...courseHeaders];
-                
-                // 2. สร้าง Rows
+                const headers = ["Name", "Company", "Courses Status"];
                 const rows = data.map(u => {
-                    // วนลูปแต่ละคอร์สเพื่อหาสถานะของ User คนนั้น
-                    const courseStatuses = courses.map(c => {
-                        const s = u.coursesStatus?.[c.id];
-                        if (s?.status === 'Passed') {
-                            return `"ผ่าน (${s.date})"`; // สถานะ 1: ผ่าน + วันที่
-                        } else if (s?.status === 'Failed') {
-                            return `"ไม่ผ่าน"`; // สถานะ 2: ไม่ผ่าน
-                        } else {
-                            return `"ยังไม่ได้เรียน"`; // สถานะ 3: ยังไม่เรียน
-                        }
-                    });
-                    
-                    return [`"${u.name}"`, `"${u.company}"`, ...courseStatuses].join(",");
+                    const statusStr = Object.entries(u.coursesStatus || {}).map(([cid, st]) => {
+                        const courseName = courses.find(c => c.id === cid)?.titleTh || cid;
+                        return `${courseName}: ${st.status} (${st.score}%)`;
+                    }).join(" | ");
+                    return `"${u.name}", "${u.company}", "${statusStr}"`;
                 });
-
                 const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
@@ -254,22 +323,6 @@
                 e.target.value = null;
             };
 
-            // ---------------------------------------------------------
-            // [แก้ไขข้อ 1] เพิ่มฟังก์ชันลบ Course และแจ้ง Error ถ้าลบไม่ได้
-            // ---------------------------------------------------------
-            const handleDeleteCourse = async (courseId) => {
-                if(confirm('คุณต้องการลบหลักสูตรนี้ใช่หรือไม่? ข้อมูลคะแนนของผู้เรียนในวิชานี้จะหายไป')) {
-                    try {
-                        await db.collection('courses').doc(courseId).delete();
-                        alert("ลบหลักสูตรเรียบร้อยแล้ว"); // แจ้งเตือนเมื่อสำเร็จ
-                    } catch (error) {
-                        console.error("Delete Error:", error);
-                        // ถ้าลบไม่ได้ จะแจ้ง Error Code ออกมา (เช่น Missing or insufficient permissions)
-                        alert("ไม่สามารถลบได้: " + error.message + "\n\n(กรุณาเช็ค Firebase Rules ใน Console ว่าอนุญาตให้ delete หรือไม่)");
-                    }
-                }
-            };
-
             const handleAddQuestion = () => {
                 if (!tempQ.q || tempQ.options.some(o => !o)) return alert("Please fill all fields");
                 const updatedQuestions = [...(editingCourse?.questions || []), tempQ];
@@ -282,6 +335,7 @@
                 setEditingCourse({ ...editingCourse, questions: updatedQuestions });
             };
 
+            // YouTube/Video URL Parser
             const extractVideoId = (url) => {
                 if (!url) return '';
                 const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -316,6 +370,17 @@
                 }
                 setEditingCourse(null);
                 setView('admin_courses');
+            };
+
+            const handleDeleteCourse = async (courseId) => {
+                if(confirm('ยืนยันการลบหลักสูตรนี้ใช่หรือไม่? ข้อมูลคะแนนของผู้เรียนในหลักสูตรนี้จะไม่สามารถเรียกคืนได้')) {
+                    try {
+                        await db.collection('courses').doc(courseId).delete();
+                        // alert("Deleted Successfully"); // Optional
+                    } catch (error) {
+                        alert("เกิดข้อผิดพลาดในการลบ: " + error.message);
+                    }
+                }
             };
 
             const handleAutoSubmit = async () => {
@@ -366,15 +431,10 @@
                 if (!url) return <div className="w-full h-full flex items-center justify-center text-white opacity-20">Video Not Found</div>;
                 const isYouTube = url.includes('youtube.com') || url.includes('youtu.be') || url.length === 11;
                 if (isYouTube) {
-                    const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : (url.includes('be/') ? url.split('be/')[1] : url);
-                    return <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${videoId}`} frameBorder="0" allowFullScreen></iframe>;
+                    const vid = url.includes('v=') ? url.split('v=')[1].split('&')[0] : (url.includes('be/') ? url.split('be/')[1] : url);
+                    return <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${vid}`} frameBorder="0" allowFullScreen></iframe>;
                 } else {
-                    return (
-                        <video className="w-full h-full" controls controlsList="nodownload">
-                            <source src={url} type="video/mp4" />
-                            Your browser does not support the video tag.
-                        </video>
-                    );
+                    return <video className="w-full h-full" controls controlsList="nodownload"><source src={url} type="video/mp4" /></video>;
                 }
             };
 
@@ -613,9 +673,6 @@
                 );
             }
 
-            // ---------------------------------------------------------
-            // [แก้ไขข้อ 2] หน้า Trainee Report (แสดงตารางสถานะ 3 แบบ)
-            // ---------------------------------------------------------
             if (view === 'admin_report') {
                 const filteredUsers = allUsers.filter(u => {
                     if (u.role === 'admin') return false;
@@ -644,52 +701,34 @@
                                 <input placeholder="Filter by Name" className="formal-input p-3 border" value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})}/>
                                 <input placeholder="Filter by Company" className="formal-input p-3 border" value={filters.company} onChange={e => setFilters({...filters, company: e.target.value})}/>
                             </div>
-                            
-                            {/* ตารางแสดงผลรายบุคคลแบบละเอียด (Matrix Table) */}
-                            <div className="bg-white rounded-xl shadow-sm overflow-x-auto border border-slate-200">
-                                <table className="w-full text-left border-collapse min-w-max">
+                            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+                                <table className="w-full text-left border-collapse">
                                     <thead className="bg-slate-50 border-b border-slate-200">
                                         <tr>
-                                            <th className="p-4 text-xs font-bold uppercase text-slate-500 sticky left-0 bg-slate-50 z-10">Trainee Info</th>
-                                            {courses.map(c => (
-                                                <th key={c.id} className="p-4 text-xs font-bold uppercase text-slate-500 text-center min-w-[120px]">{c.titleTh}</th>
-                                            ))}
-                                            <th className="p-4 text-xs font-bold uppercase text-slate-500 text-right">Action</th>
+                                            <th className="p-4 text-xs font-bold uppercase text-slate-500">Name</th>
+                                            <th className="p-4 text-xs font-bold uppercase text-slate-500">Company</th>
+                                            <th className="p-4 text-xs font-bold uppercase text-slate-500">Progress</th>
+                                            <th className="p-4 text-xs font-bold uppercase text-slate-500">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredUsers.map(u => (
-                                            <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                                <td className="p-4 sticky left-0 bg-white z-10">
-                                                    <div className="font-bold text-sm text-slate-800">{u.name}</div>
-                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">{u.company}</div>
-                                                </td>
-                                                {courses.map(c => {
-                                                    const status = u.coursesStatus?.[c.id];
-                                                    let badgeClass = "bg-slate-100 text-slate-400";
-                                                    let statusText = "ยังไม่ได้เรียน";
-                                                    
-                                                    if (status?.status === 'Passed') {
-                                                        badgeClass = "bg-green-100 text-green-700";
-                                                        statusText = `ผ่าน (${status.date})`;
-                                                    } else if (status?.status === 'Failed') {
-                                                        badgeClass = "bg-red-100 text-red-600";
-                                                        statusText = "ไม่ผ่าน";
-                                                    }
-
-                                                    return (
-                                                        <td key={c.id} className="p-4 text-center">
-                                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${badgeClass}`}>
-                                                                {statusText}
-                                                            </span>
-                                                        </td>
-                                                    );
-                                                })}
-                                                <td className="p-4 text-right">
-                                                    <button onClick={() => { if(confirm('Delete user?')) db.collection('users').doc(u.id).delete(); }} className="text-red-500 hover:text-red-700"><Icon name="trash-2" size={16}/></button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {filteredUsers.map(u => {
+                                             const passedCount = courses.filter(c => u.coursesStatus?.[c.id]?.status === 'Passed').length;
+                                             return (
+                                                <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                                    <td className="p-4 font-bold text-sm">{u.name}</td>
+                                                    <td className="p-4 text-sm text-slate-600">{u.company}</td>
+                                                    <td className="p-4">
+                                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${passedCount===courses.length && courses.length>0 ? 'bg-green-100 text-green-600':'bg-slate-100 text-slate-500'}`}>
+                                                            {passedCount} / {courses.length}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <button onClick={() => { if(confirm('Delete user?')) db.collection('users').doc(u.id).delete(); }} className="text-red-500 hover:text-red-700"><Icon name="trash-2" size={16}/></button>
+                                                    </td>
+                                                </tr>
+                                             );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -709,12 +748,12 @@
                                 <h3 className="font-bold text-lg mb-4">{editingCourse ? 'Edit Course' : 'Create New Course'}</h3>
                                 <form onSubmit={handleSaveCourse} className="space-y-4">
                                     <input name="title" defaultValue={editingCourse?.titleTh} placeholder="Course Title" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="Video URL / YouTube ID" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black col-span-2"/>
-                                        <input name="imageUrl" defaultValue={editingCourse?.imageUrl} placeholder="Cover Image URL" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
-                                        <input name="timeLimit" type="number" defaultValue={editingCourse?.timeLimit || 0} placeholder="Time Limit (Minutes)" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <input name="videoId" defaultValue={editingCourse?.videoId} placeholder="YouTube Video ID (e.g. dQw4w9WgXcQ)" required className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                        <input name="imageUrl" defaultValue={editingCourse?.imageUrl} placeholder="Cover Image URL (Optional)" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
+                                        <input name="timeLimit" type="number" defaultValue={editingCourse?.timeLimit || 0} placeholder="Time Limit (Minutes) - 0 = No Limit" className="formal-input w-full p-3 border bg-slate-50 outline-none focus:border-black"/>
                                     </div>
-
+                                    
                                     <div className="border-t pt-4 mt-4">
                                         <h4 className="font-bold text-sm mb-4">Questions ({editingCourse?.questions?.length || 0})</h4>
                                         <div className="bg-slate-50 p-4 rounded-lg space-y-3 mb-4 border border-slate-200">
@@ -760,13 +799,12 @@
                                             </div>
                                             <div>
                                                 <h4 className="font-bold text-md">{c.titleTh}</h4>
-                                                <p className="text-xs text-slate-400">Q: {c.questions?.length} | Time: {c.timeLimit || 'No'} min</p>
+                                                <p className="text-xs text-slate-400">Time: {c.timeLimit ? c.timeLimit + 'm' : 'Unlimited'} | Q: {c.questions?.length}</p>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => setEditingCourse(c)} className="p-2 bg-slate-100 rounded hover:bg-slate-200"><Icon name="edit" size={16}/></button>
-                                            {/* ปุ่มลบที่เรียกใช้ handleDeleteCourse */}
-                                            <button onClick={() => handleDeleteCourse(c.id)} className="p-2 bg-red-50 text-red-500 rounded hover:bg-red-100"><Icon name="trash-2" size={16}/></button>
+                                            <button onClick={() => { if(confirm('Delete course?')) db.collection('courses').doc(c.id).delete(); }} className="p-2 bg-red-50 text-red-500 rounded hover:bg-red-100"><Icon name="trash-2" size={16}/></button>
                                         </div>
                                     </div>
                                 ))}
@@ -777,24 +815,31 @@
             }
 
             if (view === 'certificate') return (
-                <div className="min-h-screen bg-slate-200 flex flex-col items-center p-4 md:p-12 no-print overflow-y-auto">
-                    <div className="bg-white p-8 md:p-12 w-full max-w-[1000px] aspect-[100/70] cert-bg shadow-2xl flex flex-col items-center justify-center text-center print-container">
-                        <h1 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-slate-900 mb-2">Certificate</h1>
-                        <p className="text-sks-red font-bold uppercase tracking-[0.5em] mb-8 md:mb-16 text-[10px]">of course completion</p>
-                        <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-6 border-b-4 border-slate-100 px-12 pb-4">{user?.name}</h2>
-                        <p className="text-sm md:text-lg text-slate-600 mb-12 md:mb-16 max-w-2xl font-bold">Has successfully completed the safety training program in<br/><span className="text-black italic uppercase tracking-tight text-xl md:text-2xl">"{activeCourse?.titleTh}"</span><br/>at <span className="text-black">{user?.company}</span></p>
-                        <div className="flex justify-between w-full px-8 md:px-24 items-end">
-                            <div className="text-center">
-                                <p className="font-black border-b-2 border-slate-900 pb-1 px-6">{user?.coursesStatus[activeCourse?.id]?.date}</p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase mt-2">Date Issued</p>
-                            </div>
-                            <div className="w-16 h-16 md:w-24 md:h-24 bg-black rounded-full flex items-center justify-center text-white font-black italic border-4 border-sks-red text-xl md:text-3xl">SKS</div>
-                            <div className="text-center">
-                                <div className="h-8 md:h-10 w-24 md:w-32 mx-auto border-b-2 border-slate-900 mb-1"></div>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase">Authorized Signature</p>
-                            </div>
+                <div className="min-h-screen bg-slate-200 flex flex-col items-center p-0 md:p-12 no-print overflow-y-auto">
+                    <div className="cert-wrapper print-container">
+                        <img 
+                            src="https://github.com/chaiyakitpromsri-debug/web-assets/blob/main/logo/certificate_upload.png?raw=true" 
+                            className="cert-template-img" 
+                            alt="Certificate Template"
+                        />
+                        
+                        <div className="cert-data-text pos-name">
+                            {user?.name}
+                        </div>
+                        
+                        <div className="cert-data-text pos-company">
+                            {user?.company}
+                        </div>
+                        
+                        <div className="cert-data-text pos-course">
+                            {activeCourse?.titleTh}
+                        </div>
+                        
+                        <div className="cert-data-text pos-date">
+                            {user?.coursesStatus[activeCourse?.id]?.date}
                         </div>
                     </div>
+                    
                     <div className="mt-8 flex gap-4 no-print">
                         <button onClick={() => window.print()} className="formal-btn bg-black text-white px-8 py-3 font-bold text-xs uppercase shadow-lg flex items-center gap-2"><Icon name="printer" size={16}/> Print</button>
                         <button onClick={() => setView('dashboard')} className="formal-btn bg-white text-slate-500 px-8 py-3 font-bold text-xs uppercase border">Close</button>
