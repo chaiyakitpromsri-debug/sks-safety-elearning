@@ -70,10 +70,9 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             margin: 0 auto;
             overflow: hidden;
-            
             /* Background Image เดิม */
             background-image: url('https://github.com/chaiyakitpromsri-debug/web-assets/blob/main/logo/certificate_upload.png?raw=true');
-            background-size: contain; 
+            background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
         }
@@ -104,15 +103,15 @@
         /* --- ตำแหน่งข้อความ (ปรับจูนได้ที่นี่) --- */
         
         .pos-name { 
-            top: 43.5%;        /* ระยะจากบนลงล่าง (0-100%) */
-            left: 70%;       /* ระยะจากซ้ายไปขวา (50% คือกึ่งกลาง) */
+            top: 43.5%; /* ระยะจากบนลงล่าง (0-100%) */
+            left: 70%; /* ระยะจากซ้ายไปขวา (50% คือกึ่งกลาง) */
             font-size: 42px; /* ขนาดตัวอักษร */
-            color: #1e3a8a;  /* สีตัวอักษร (น้ำเงินเข้ม) */
+            color: #1e3a8a; /* สีตัวอักษร (น้ำเงินเข้ม) */
         }
 
         /* 2. ชื่อบริษัท */
         .pos-company { 
-            top: 53%;      
+            top: 53%;
             left: 59%;     
             font-size: 24px;
             color: #1e3a8a;
@@ -122,7 +121,7 @@
         
         /* 3. ชื่อคอร์ส */
         .pos-course { 
-            top: 57%;      
+            top: 57%;
             left: 70%;     
             font-size: 18px;
             color: #1e3a8a;
@@ -130,7 +129,7 @@
 
         /* 4. วันที่ */
         .pos-date { 
-            top: 64%;      
+            top: 64%;
             left: 63.5%;     
             font-size: 20px;
             color: #475569;
@@ -182,20 +181,17 @@
         const db = firebase.firestore();
 
         function App() {
-            const [view, setView] = useState('loading'); 
+            const [view, setView] = useState('loading');
             const [user, setUser] = useState(null); 
             const [courses, setCourses] = useState([]);
             const [allUsers, setAllUsers] = useState([]);
             const [activeCourse, setActiveCourse] = useState(null);
-            
             const [quizQuestions, setQuizQuestions] = useState([]);
             const [currentQ, setCurrentQ] = useState(0);
             const [userAnswers, setUserAnswers] = useState({});
             const [timeLeft, setTimeLeft] = useState(0);
-
             const [filters, setFilters] = useState({ name: '', company: '' });
             const [editingCourse, setEditingCourse] = useState(null);
-            
             const [tempQ, setTempQ] = useState({ q: '', options: ['', '', '', ''], a: 0 });
             
             const fileInputRef = useRef(null);
@@ -252,7 +248,7 @@
             };
 
             const logout = () => { 
-                localStorage.clear(); 
+                localStorage.clear();
                 setUser(null); 
                 setView('login'); 
             };
@@ -318,6 +314,7 @@
                     let successCount = 0;
                     const batch = db.batch();
                     let operationCount = 0;
+
                     lines.forEach((line) => {
                         const [rawName, rawCompany] = line.split(',').map(s => s?.trim()?.replace(/^"|"$/g, ''));
                         if (rawName && rawCompany && rawName !== "Name") {
@@ -328,6 +325,7 @@
                             successCount++;
                         }
                     });
+
                     if (operationCount > 0) {
                         await batch.commit();
                         alert(`Successfully imported ${successCount} users.`);
@@ -363,8 +361,7 @@
                 const title = e.target.title.value;
                 const videoIdInput = e.target.videoId.value;
                 const imageUrl = e.target.imageUrl.value;
-                const timeLimit = parseInt(e.target.timeLimit.value) || 0; 
-                
+                const timeLimit = parseInt(e.target.timeLimit.value) || 0;
                 const videoId = extractVideoId(videoIdInput);
 
                 if (!editingCourse?.questions?.length) return alert("Please add at least one question.");
@@ -407,6 +404,7 @@
                 const score = Math.round((correct / quizQuestions.length) * 100);
                 const pass = score >= (activeCourse?.passScore || 80);
                 const res = { status: pass?'Passed':'Failed', score, date: new Date().toLocaleDateString('th-TH') };
+                
                 const newStatus = { ...user.coursesStatus, [activeCourse.id]: res };
                 
                 await db.collection('users').doc(user.id).update({ coursesStatus: newStatus });
@@ -418,7 +416,6 @@
 
             const startQuiz = () => {
                 if(!activeCourse?.questions?.length) return alert("Course content is being updated.");
-                
                 const shuffledQuestions = [...activeCourse.questions]
                     .sort(() => Math.random() - 0.5)
                     .map(q => {
@@ -427,7 +424,6 @@
                         const newCorrectIndex = shuffledOptions.findIndex(item => item.originalIdx === q.a);
                         return { q: q.q, options: shuffledOptions.map(item => item.opt), a: newCorrectIndex };
                     });
-
                 setQuizQuestions(shuffledQuestions);
                 setCurrentQ(0); 
                 setUserAnswers({});
@@ -463,10 +459,25 @@
                             <h1 className="text-white font-bold text-2xl uppercase tracking-wider">SKS E-Learning</h1>
                             <p className="text-sks-red text-xs font-semibold tracking-widest mt-2">SAFETY MANAGEMENT SYSTEM</p>
                         </div>
+                        
                         <form onSubmit={handleLogin} className="p-8 space-y-4">
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Company</label>
-                                <input name="company" placeholder="ระบุบริษัทสังกัด" required className="formal-input w-full p-3 bg-slate-50 border border-slate-200 focus:border-sks-red outline-none text-sm"/>
+                                {/* เริ่มส่วนที่แก้ไขเป็น Dropdown Select */}
+                                <select name="company" defaultValue="" required className="formal-input w-full p-3 bg-slate-50 border border-slate-200 focus:border-sks-red outline-none text-sm">
+                                    <option value="" disabled>เลือกบริษัทสังกัด</option>
+                                    <option value="IMCT">IMCT</option>
+                                    <option value="VNS">VNS</option>
+                                    <option value="SKR">SKR</option>
+                                    <option value="CEVA">CEVA</option>
+                                    <option value="LINEX">LINEX</option>
+                                    <option value="LTH">LTH</option>
+                                    <option value="RRCS">RRCS</option>
+                                    <option value="VAC">VAC</option>
+                                    <option value="SNTH">SNTH</option>
+                                    <option value="YUSEN">YUSEN</option>
+                                </select>
+                                {/* สิ้นสุดส่วนที่แก้ไข */}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Full Name</label>
@@ -752,7 +763,7 @@
                                                     );
                                                 })}
                                                 <td className="p-4">
-                                                    <button onClick={() => { if(confirm('Delete user?')) db.collection('users').doc(u.id).delete(); }} className="text-red-500 hover:text-red-700"><Icon name="trash-2" size={16}/></button>
+                                                   <button onClick={() => { if(confirm('Delete user?')) db.collection('users').doc(u.id).delete(); }} className="text-red-500 hover:text-red-700"><Icon name="trash-2" size={16}/></button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -768,7 +779,7 @@
                 return (
                     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
                          <AdminNav /><MobileAdminNav />
-                        <main className="flex-1 p-6 md:p-12 overflow-y-auto">
+                         <main className="flex-1 p-6 md:p-12 overflow-y-auto">
                             <h2 className="text-3xl font-bold text-slate-800 mb-8">Course Management</h2>
                             
                             <div className="bg-white p-6 formal-card mb-8 border border-slate-200">
@@ -842,7 +853,6 @@
             }
 
             if (view === 'certificate') return (
-                // แก้ไข: ลบ class no-print ออกจากตรงนี้ เพื่อให้เนื้อหาแสดงตอนสั่ง print
                 <div className="min-h-screen bg-slate-200 flex flex-col items-center p-0 md:p-12 overflow-y-auto">
                     <div className="cert-wrapper print-container">
                         <img 
